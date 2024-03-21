@@ -248,7 +248,11 @@ extension Libssh2 {
                 return nil
             }
 
-            return String(cString: libssh2_session_banner_get(session))
+            if let bannerPointer = libssh2_session_banner_get(session) {
+            return String(cString: bannerPointer)
+        } else {
+            return nil
+        }
         }
         
         func makeChannel() -> SSHLibraryChannel {
