@@ -4,6 +4,7 @@ Pod::Spec.new do |spec|
   spec.summary          = 'A Swift SSH framework that wraps libssh2.'
   spec.homepage         = 'https://github.com/TheTekton337/SwiftSH'
   spec.license          = 'MIT'
+  spec.swift_versions   = ['5.3']
   spec.authors          = { 'Tommaso Madonia' => 'tommaso@madonia.me' }
   spec.source           = { :git => 'https://github.com/TheTekton337/SwiftSH.git', :tag => spec.version.to_s }
 
@@ -11,7 +12,7 @@ Pod::Spec.new do |spec|
   spec.default_subspec  = 'Libssh2'
   spec.swift_version    = '5.3'
 
-  spec.ios.deployment_target = '13.0'
+  spec.macos.deployment_target = '10.15'
  spec.macos.deployment_target = '10.15'
 
   spec.subspec 'Core' do |core|
