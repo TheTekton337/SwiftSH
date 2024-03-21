@@ -2,10 +2,10 @@ Pod::Spec.new do |spec|
   spec.name             = 'SwiftSH'
   spec.version          = '0.1.2'
   spec.summary          = 'A Swift SSH framework that wraps libssh2.'
-  spec.homepage         = 'https://github.com/Frugghi/SwiftSH'
+  spec.homepage         = 'https://github.com/TheTekton337/SwiftSH'
   spec.license          = 'MIT'
   spec.authors          = { 'Tommaso Madonia' => 'tommaso@madonia.me' }
-  spec.source           = { :git => 'https://github.com/Frugghi/SwiftSH.git', :tag => spec.version.to_s }
+  spec.source           = { :git => 'https://github.com/TheTekton337/SwiftSH.git', :tag => spec.version.to_s }
 
   spec.requires_arc     = true
   spec.default_subspec  = 'Libssh2'
