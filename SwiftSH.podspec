@@ -12,8 +12,8 @@ Pod::Spec.new do |spec|
   spec.default_subspec  = 'Libssh2'
   spec.swift_version    = '5.3'
 
+  spec.ios.deployment_target = '13.0'
   spec.macos.deployment_target = '10.15'
- spec.macos.deployment_target = '10.15'
 
   spec.subspec 'Core' do |core|
       core.source_files = 'Sources/SwiftSH/*.swift'

@@ -1,0 +1,16 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "CSSH",
+        "repositoryURL": "https://github.com/TheTekton337/Libssh2Prebuild.git",
+        "state": {
+          "branch": "master",
+          "revision": "3fdbd4f69f71e52da56daa15b628569fad88e89f",
+          "version": null
+        }
+      }
+    ]
+  },
+  "version": 1
+}

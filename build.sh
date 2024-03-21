@@ -1,6 +1,6 @@
 #/bin/bash
 config=Debug
-includessh=false
+includessh=true
 while test x$1 != x; do
     case $1 in
 	--includessh)
@@ -24,10 +24,12 @@ if $mac; then
 fi
 mkdir tvoslib
 if $includessh; then
+    CWD_OLD=$PWD
     cd ../iSSH2
     ./iSSH2.sh --platform=iphoneos  --no-clean  --min-version=11.0
     ./iSSH2.sh --platform=macosx  --no-clean --sdk-version=10.15 --min-version=10.15
     ./iSSH2.sh --platform=appletvos --no-clean  --min-version=11.0
+		cd $CWD_OLD
 fi
 
 cp ../iSSH2/libssh2_iphoneos/include/* libssh2/libssh2
