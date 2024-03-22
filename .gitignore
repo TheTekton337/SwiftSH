@@ -61,3 +61,12 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# SPM
+Package.resolved
+.swiftpm
+
+# build
+local-build
+macoslib
+tvoslib
