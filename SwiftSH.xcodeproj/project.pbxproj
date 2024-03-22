@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1160B2F12BAD442100AC0FF4 /* Libssh2.h in Headers */ = {isa = PBXBuildFile; fileRef = 115864222BAD43A600632D77 /* Libssh2.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		180BD2031B4C622D000DB241 /* SwiftSH.h in Headers */ = {isa = PBXBuildFile; fileRef = 180BD2021B4C622D000DB241 /* SwiftSH.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		180BD21C1B4C7367000DB241 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 180BD21B1B4C7367000DB241 /* libz.tbd */; };
 		49176A2F2666C72C00D32353 /* Command.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49176A212666C72C00D32353 /* Command.swift */; };
@@ -41,6 +42,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		115864222BAD43A600632D77 /* Libssh2.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Libssh2.h; sourceTree = "<group>"; };
 		180BD1FF1B4C622D000DB241 /* SwiftSH.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SwiftSH.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		180BD2021B4C622D000DB241 /* SwiftSH.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SwiftSH.h; sourceTree = "<group>"; };
 		180BD2041B4C622D000DB241 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -130,6 +132,7 @@
 		180BD2011B4C622D000DB241 /* SwiftSH */ = {
 			isa = PBXGroup;
 			children = (
+				115864222BAD43A600632D77 /* Libssh2.h */,
 				180BD2021B4C622D000DB241 /* SwiftSH.h */,
 				188EA25B1B4D3BCF007B7E49 /* Lib Wrapper */,
 				188EA25A1B4D3B94007B7E49 /* Internal */,
@@ -201,6 +204,7 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1160B2F12BAD442100AC0FF4 /* Libssh2.h in Headers */,
 				180BD2031B4C622D000DB241 /* SwiftSH.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
