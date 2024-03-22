@@ -88,7 +88,9 @@ if [ "$fatdebug" = true ] && [ "$config" = "Debug" ]; then
         -output "SwiftSH.framework/SwiftSH"
 fi
 
-rm -rf ../SwiftSH.binaries/
-mkdir ../SwiftSH.binaries/
+rm -rf ../SwiftSH.binaries/SwiftSH.framework
+
+mkdir ../SwiftSH.binaries/SwiftSH.xcframework
+
 mv SwiftSH.framework ../SwiftSH.binaries/
 mv SwiftSH.xcframework ../SwiftSH.binaries/
