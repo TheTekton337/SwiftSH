@@ -1,6 +1,7 @@
 #/bin/bash
 config=Debug
-includessh=true
+includessh=false
+fatdebug=false
 while test x$1 != x; do
     case $1 in
 	--includessh)
@@ -9,6 +10,9 @@ while test x$1 != x; do
 	--config=*)
 	    config=`echo $1 | sed 's/--config=//'`
 	    ;;
+	--fatdebug)
+			fatdebug=true
+			;;
 	--help)
 	    echo "--config=[Debug|Release] Specifies the build configuration"
 	    echo "--includessh             To include a fresh build of iSSH2"
@@ -18,16 +22,16 @@ while test x$1 != x; do
 done
     
 build_dir=local-build
-rm -rf $build_dir macoslib SwiftSH.xcframework tvoslib
+rm -rf $build_dir macoslib SwiftSH.framework SwiftSH.xcframework tvoslib
 if $mac; then
     mkdir macoslib
 fi
 mkdir tvoslib
+CWD_OLD=$PWD
 if $includessh; then
-    CWD_OLD=$PWD
     cd ../iSSH2
     ./iSSH2.sh --platform=iphoneos  --no-clean  --min-version=11.0
-    ./iSSH2.sh --platform=macosx  --no-clean --sdk-version=10.15 --min-version=10.15
+    ./iSSH2.sh --platform=macosx  --no-clean --sdk-version=14.4 --min-version=10.15
     ./iSSH2.sh --platform=appletvos --no-clean  --min-version=11.0
 		cd $CWD_OLD
 fi
@@ -39,7 +43,8 @@ cp ../iSSH2/*_macosx/lib/* macoslib
 
 
 # Could be empty, for now use this, since we do not have armv7 builds of libssh2 copied
-IOS_ARCHS="-arch arm64 -arch arm64e"
+# IOS_ARCHS="-arch arm64 -arch arm64e"
+IOS_ARCHS="-arch arm64"
 
 # Parameters
 #  $1 name used to construct the archivePath (local-build/$1.xcarchive)
@@ -58,11 +63,32 @@ xcode_platform_archive_build()
 	       -derivedDataPath /tmp/build-$_name	\
 	       $*
 }
-xcode_platform_archive_build tvos appletvos LIBRARY_SEARCH_PATHS=`pwd`/tvoslib
+# TODO: Troubleshoot tvos build
+# xcode_platform_archive_build tvos appletvos LIBRARY_SEARCH_PATHS=`pwd`/tvoslib
 xcode_platform_archive_build ios iphoneos $IOS_ARCHS
 xcode_platform_archive_build iossimulator iphonesimulator
 xcode_platform_archive_build mac macosx LIBRARY_SEARCH_PATHS=`pwd`/macoslib
 
-frameworks=`for x in $(echo local-build/*xcarchive/Products/Library/Frameworks/SwiftSH.framework); do echo -n "-framework $x "; done`
+frameworks=`for x in $(echo local-build/*xcarchive/Products/Library/Frameworks/SwiftSH.framework); do echo "-framework $x "; done`
 
 xcodebuild -create-xcframework $frameworks -output SwiftSH.xcframework
+
+if [ "$fatdebug" = true ] && [ "$config" = "Debug" ]; then
+    echo "Building fat framework for Debug configuration..."
+
+		mkdir SwiftSH.framework
+
+    cp -r SwiftSH.xcframework/ios-arm64/SwiftSH.framework/* SwiftSH.framework/
+
+		rm SwiftSH.framework/SwiftSH
+
+    lipo -create \
+        "$CWD_OLD/$build_dir/ios.xcarchive/Products/Library/Frameworks/SwiftSH.framework/SwiftSH" \
+        "$CWD_OLD/$build_dir/iossimulator.xcarchive/Products/Library/Frameworks/SwiftSH.framework/SwiftSH" \
+        -output "SwiftSH.framework/SwiftSH"
+fi
+
+rm -rf ../SwiftSH.binaries/
+mkdir ../SwiftSH.binaries/
+mv SwiftSH.framework ../SwiftSH.binaries/
+mv SwiftSH.xcframework ../SwiftSH.binaries/
