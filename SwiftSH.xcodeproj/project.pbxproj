@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 52;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -279,7 +279,7 @@
 			);
 			mainGroup = 180BD1F51B4C622D000DB241;
 			packageReferences = (
-				49176A3D2666C7E500D32353 /* XCRemoteSwiftPackageReference "SwiftSh" */,
+				49176A3D2666C7E500D32353 /* XCRemoteSwiftPackageReference "SwiftSH" */,
 			);
 			productRefGroup = 180BD2001B4C622D000DB241 /* Products */;
 			projectDirPath = "";
@@ -613,9 +613,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		49176A3D2666C7E500D32353 /* XCRemoteSwiftPackageReference "SwiftSh" */ = {
+		49176A3D2666C7E500D32353 /* XCRemoteSwiftPackageReference "SwiftSH" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/migueldeicaza/SwiftSh";
+			repositoryURL = "https://github.com/TheTekton337/SwiftSH";
 			requirement = {
 				branch = swiftpm;
 				kind = branch;
@@ -626,7 +626,7 @@
 /* Begin XCSwiftPackageProductDependency section */
 		49176A3E2666C7E500D32353 /* CSwiftSH */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 49176A3D2666C7E500D32353 /* XCRemoteSwiftPackageReference "SwiftSh" */;
+			package = 49176A3D2666C7E500D32353 /* XCRemoteSwiftPackageReference "SwiftSH" */;
 			productName = CSwiftSH;
 		};
 /* End XCSwiftPackageProductDependency section */

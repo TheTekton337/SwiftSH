@@ -158,27 +158,27 @@ fileprivate extension Int32 {
         }
 
         switch Int32(libssh2_sftp_last_error(sftp)) {
-        case LIBSSH2_FX_EOF: return .endOfFile
-        case LIBSSH2_FX_NO_SUCH_FILE: return .noSuchFile
-        case LIBSSH2_FX_PERMISSION_DENIED: return .permissionDenied
-        case LIBSSH2_FX_FAILURE: return .failure
-        case LIBSSH2_FX_BAD_MESSAGE: return .badMessage
-        case LIBSSH2_FX_NO_CONNECTION: return .noConnection
-        case LIBSSH2_FX_CONNECTION_LOST: return .connectionLost
-        case LIBSSH2_FX_OP_UNSUPPORTED: return .operationUnsupported
-        case LIBSSH2_FX_INVALID_HANDLE: return .invalidHandle
-        case LIBSSH2_FX_NO_SUCH_PATH: return .noSuchPath
-        case LIBSSH2_FX_FILE_ALREADY_EXISTS: return .fileAlreadyExists
-        case LIBSSH2_FX_WRITE_PROTECT: return .writeProtect
-        case LIBSSH2_FX_NO_MEDIA: return .noMedia
-        case LIBSSH2_FX_NO_SPACE_ON_FILESYSTEM: return .noSpaceOnFilesystem
-        case LIBSSH2_FX_QUOTA_EXCEEDED: return .quotaExceeded
-        case LIBSSH2_FX_UNKNOWN_PRINCIPAL: return .unknownPrincipal
-        case LIBSSH2_FX_LOCK_CONFLICT: return .lockConflict
-        case LIBSSH2_FX_DIR_NOT_EMPTY: return .directoryNotEmpty
-        case LIBSSH2_FX_NOT_A_DIRECTORY: return .notADirectory
-        case LIBSSH2_FX_INVALID_FILENAME: return .invalidFilename
-        case LIBSSH2_FX_LINK_LOOP: return .linkLoop
+        case Int32(LIBSSH2_FX_EOF): return .endOfFile
+        case Int32(LIBSSH2_FX_NO_SUCH_FILE): return .noSuchFile
+        case Int32(LIBSSH2_FX_PERMISSION_DENIED): return .permissionDenied
+        case Int32(LIBSSH2_FX_FAILURE): return .failure
+        case Int32(LIBSSH2_FX_BAD_MESSAGE): return .badMessage
+        case Int32(LIBSSH2_FX_NO_CONNECTION): return .noConnection
+        case Int32(LIBSSH2_FX_CONNECTION_LOST): return .connectionLost
+        case Int32(LIBSSH2_FX_OP_UNSUPPORTED): return .operationUnsupported
+        case Int32(LIBSSH2_FX_INVALID_HANDLE): return .invalidHandle
+        case Int32(LIBSSH2_FX_NO_SUCH_PATH): return .noSuchPath
+        case Int32(LIBSSH2_FX_FILE_ALREADY_EXISTS): return .fileAlreadyExists
+        case Int32(LIBSSH2_FX_WRITE_PROTECT): return .writeProtect
+        case Int32(LIBSSH2_FX_NO_MEDIA): return .noMedia
+        case Int32(LIBSSH2_FX_NO_SPACE_ON_FILESYSTEM): return .noSpaceOnFilesystem
+        case Int32(LIBSSH2_FX_QUOTA_EXCEEDED): return .quotaExceeded
+        case Int32(LIBSSH2_FX_UNKNOWN_PRINCIPAL): return .unknownPrincipal
+        case Int32(LIBSSH2_FX_LOCK_CONFLICT): return .lockConflict
+        case Int32(LIBSSH2_FX_DIR_NOT_EMPTY): return .directoryNotEmpty
+        case Int32(LIBSSH2_FX_NOT_A_DIRECTORY): return .notADirectory
+        case Int32(LIBSSH2_FX_INVALID_FILENAME): return .invalidFilename
+        case Int32(LIBSSH2_FX_LINK_LOOP): return .linkLoop
         default: return .unknown
         }
     }
@@ -248,7 +248,10 @@ extension Libssh2 {
                 return nil
             }
 
-            return String(cString: libssh2_session_banner_get(session))
+            guard let bannerPointer = libssh2_session_banner_get(session) else {
+                return nil
+            }
+            return String(cString: bannerPointer)
         }
         
         func makeChannel() -> SSHLibraryChannel {
