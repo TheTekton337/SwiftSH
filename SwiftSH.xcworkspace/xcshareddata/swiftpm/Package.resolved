@@ -1,0 +1,24 @@
+{
+  "originHash" : "6322bf1657115f1e9bfc5afdf7b9eb6b9157ac81b3b3c567e8de14e5792ed067",
+  "pins" : [
+    {
+      "identity" : "libssh2prebuild",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/TheTekton337/Libssh2Prebuild.git",
+      "state" : {
+        "revision" : "e4042762ed3f9d86d8f22caa69c8e2cc1e3750bf",
+        "version" : "1.11.0"
+      }
+    },
+    {
+      "identity" : "swiftsh",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/TheTekton337/SwiftSH",
+      "state" : {
+        "branch" : "master",
+        "revision" : "9a8948ea1e0530d4933ab4918ace29916c67e775"
+      }
+    }
+  ],
+  "version" : 3
+}
