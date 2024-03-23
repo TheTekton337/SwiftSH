@@ -7,6 +7,24 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		11039ECD2BAE48FD00EC4FDA /* Shell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49176A2E2666C72C00D32353 /* Shell.swift */; };
+		11039ECE2BAE48FD00EC4FDA /* SSHLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49176A262666C72C00D32353 /* SSHLibrary.swift */; };
+		11039ECF2BAE48FD00EC4FDA /* ConsoleLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49176A2C2666C72C00D32353 /* ConsoleLogger.swift */; };
+		11039ED02BAE48FD00EC4FDA /* Libssh2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49176A232666C72C00D32353 /* Libssh2.swift */; };
+		11039ED12BAE48FD00EC4FDA /* Channel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49176A2D2666C72C00D32353 /* Channel.swift */; };
+		11039ED22BAE48FD00EC4FDA /* Queue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49176A272666C72C00D32353 /* Queue.swift */; };
+		11039ED32BAE48FD00EC4FDA /* SFTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49176A242666C72C00D32353 /* SFTP.swift */; };
+		11039ED42BAE48FD00EC4FDA /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49176A292666C72C00D32353 /* Session.swift */; };
+		11039ED52BAE48FD00EC4FDA /* Command.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49176A212666C72C00D32353 /* Command.swift */; };
+		11039ED62BAE48FD00EC4FDA /* SCP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49176A222666C72C00D32353 /* SCP.swift */; };
+		11039ED72BAE48FD00EC4FDA /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49176A2B2666C72C00D32353 /* Extensions.swift */; };
+		11039ED82BAE48FD00EC4FDA /* DNS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49176A282666C72C00D32353 /* DNS.swift */; };
+		11039ED92BAE48FD00EC4FDA /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49176A2A2666C72C00D32353 /* Logger.swift */; };
+		11039EDA2BAE48FD00EC4FDA /* Error.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49176A252666C72C00D32353 /* Error.swift */; };
+		11039EDC2BAE48FD00EC4FDA /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 180BD21B1B4C7367000DB241 /* libz.tbd */; };
+		11039EDD2BAE48FD00EC4FDA /* CSwiftSH in Frameworks */ = {isa = PBXBuildFile; productRef = 11039ECA2BAE48FD00EC4FDA /* CSwiftSH */; };
+		11039EDF2BAE48FD00EC4FDA /* Libssh2.h in Headers */ = {isa = PBXBuildFile; fileRef = 115864222BAD43A600632D77 /* Libssh2.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		11039EE02BAE48FD00EC4FDA /* SwiftSH.h in Headers */ = {isa = PBXBuildFile; fileRef = 180BD2021B4C622D000DB241 /* SwiftSH.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		1160B2F12BAD442100AC0FF4 /* Libssh2.h in Headers */ = {isa = PBXBuildFile; fileRef = 115864222BAD43A600632D77 /* Libssh2.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		180BD2031B4C622D000DB241 /* SwiftSH.h in Headers */ = {isa = PBXBuildFile; fileRef = 180BD2021B4C622D000DB241 /* SwiftSH.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		180BD21C1B4C7367000DB241 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 180BD21B1B4C7367000DB241 /* libz.tbd */; };
@@ -42,6 +60,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		11039EE52BAE48FD00EC4FDA /* SwiftSH copy.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "SwiftSH copy.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
+		11039EE62BAE48FD00EC4FDA /* SwiftSH copy-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "SwiftSH copy-Info.plist"; path = "/Users/tjtekton/code/TheTekton337/SwiftSH/SwiftSH copy-Info.plist"; sourceTree = "<absolute>"; };
 		115864222BAD43A600632D77 /* Libssh2.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Libssh2.h; sourceTree = "<group>"; };
 		180BD1FF1B4C622D000DB241 /* SwiftSH.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SwiftSH.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		180BD2021B4C622D000DB241 /* SwiftSH.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SwiftSH.h; sourceTree = "<group>"; };
@@ -76,6 +96,15 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		11039EDB2BAE48FD00EC4FDA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				11039EDC2BAE48FD00EC4FDA /* libz.tbd in Frameworks */,
+				11039EDD2BAE48FD00EC4FDA /* CSwiftSH in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		180BD1FB1B4C622D000DB241 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -117,6 +146,7 @@
 				180BD2011B4C622D000DB241 /* SwiftSH */,
 				7D148CFB21225961009C1CCC /* SwiftSH Integration Tests */,
 				180BD2001B4C622D000DB241 /* Products */,
+				11039EE62BAE48FD00EC4FDA /* SwiftSH copy-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -125,6 +155,7 @@
 			children = (
 				180BD1FF1B4C622D000DB241 /* SwiftSH.framework */,
 				7D148CFA21225961009C1CCC /* SwiftSH Integration Tests.xctest */,
+				11039EE52BAE48FD00EC4FDA /* SwiftSH copy.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -200,6 +231,15 @@
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
+		11039EDE2BAE48FD00EC4FDA /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				11039EDF2BAE48FD00EC4FDA /* Libssh2.h in Headers */,
+				11039EE02BAE48FD00EC4FDA /* SwiftSH.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		180BD1FC1B4C622D000DB241 /* Headers */ = {
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
@@ -212,6 +252,27 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
+		11039EC92BAE48FD00EC4FDA /* SwiftSH copy */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 11039EE22BAE48FD00EC4FDA /* Build configuration list for PBXNativeTarget "SwiftSH copy" */;
+			buildPhases = (
+				11039ECC2BAE48FD00EC4FDA /* Sources */,
+				11039EDB2BAE48FD00EC4FDA /* Frameworks */,
+				11039EDE2BAE48FD00EC4FDA /* Headers */,
+				11039EE12BAE48FD00EC4FDA /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "SwiftSH copy";
+			packageProductDependencies = (
+				11039ECA2BAE48FD00EC4FDA /* CSwiftSH */,
+			);
+			productName = SwiftSH;
+			productReference = 11039EE52BAE48FD00EC4FDA /* SwiftSH copy.framework */;
+			productType = "com.apple.product-type.framework";
+		};
 		180BD1FE1B4C622D000DB241 /* SwiftSH */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 180BD2131B4C622D000DB241 /* Build configuration list for PBXNativeTarget "SwiftSH" */;
@@ -290,11 +351,19 @@
 			targets = (
 				180BD1FE1B4C622D000DB241 /* SwiftSH */,
 				7D148CF921225961009C1CCC /* SwiftSH Integration Tests */,
+				11039EC92BAE48FD00EC4FDA /* SwiftSH copy */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		11039EE12BAE48FD00EC4FDA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		180BD1FD1B4C622D000DB241 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -313,6 +382,27 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		11039ECC2BAE48FD00EC4FDA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				11039ECD2BAE48FD00EC4FDA /* Shell.swift in Sources */,
+				11039ECE2BAE48FD00EC4FDA /* SSHLibrary.swift in Sources */,
+				11039ECF2BAE48FD00EC4FDA /* ConsoleLogger.swift in Sources */,
+				11039ED02BAE48FD00EC4FDA /* Libssh2.swift in Sources */,
+				11039ED12BAE48FD00EC4FDA /* Channel.swift in Sources */,
+				11039ED22BAE48FD00EC4FDA /* Queue.swift in Sources */,
+				11039ED32BAE48FD00EC4FDA /* SFTP.swift in Sources */,
+				11039ED42BAE48FD00EC4FDA /* Session.swift in Sources */,
+				11039ED52BAE48FD00EC4FDA /* Command.swift in Sources */,
+				11039ED62BAE48FD00EC4FDA /* SCP.swift in Sources */,
+				11039ED72BAE48FD00EC4FDA /* Extensions.swift in Sources */,
+				11039ED82BAE48FD00EC4FDA /* DNS.swift in Sources */,
+				11039ED92BAE48FD00EC4FDA /* Logger.swift in Sources */,
+				11039EDA2BAE48FD00EC4FDA /* Error.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		180BD1FA1B4C622D000DB241 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -354,6 +444,59 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		11039EE32BAE48FD00EC4FDA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/libssh2";
+				INFOPLIST_FILE = "SwiftSH copy-Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/libssh2";
+				PRODUCT_BUNDLE_IDENTIFIER = com.tommasomadonia.SwiftSH;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/libssh2";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		11039EE42BAE48FD00EC4FDA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/libssh2";
+				INFOPLIST_FILE = "SwiftSH copy-Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/libssh2";
+				PRODUCT_BUNDLE_IDENTIFIER = com.tommasomadonia.SwiftSH;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/libssh2";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 		180BD2111B4C622D000DB241 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -484,7 +627,7 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/libssh2";
+				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/libssh2/**";
 				INFOPLIST_FILE = SwiftSH/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -511,7 +654,7 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/libssh2";
+				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/libssh2/**";
 				INFOPLIST_FILE = SwiftSH/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -586,6 +729,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		11039EE22BAE48FD00EC4FDA /* Build configuration list for PBXNativeTarget "SwiftSH copy" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				11039EE32BAE48FD00EC4FDA /* Debug */,
+				11039EE42BAE48FD00EC4FDA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		180BD1F91B4C622D000DB241 /* Build configuration list for PBXProject "SwiftSH" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -616,6 +768,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		11039ECB2BAE48FD00EC4FDA /* XCRemoteSwiftPackageReference "SwiftSH" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/TheTekton337/SwiftSH";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
 		49176A3D2666C7E500D32353 /* XCRemoteSwiftPackageReference "SwiftSH" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/TheTekton337/SwiftSH";
@@ -627,6 +787,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		11039ECA2BAE48FD00EC4FDA /* CSwiftSH */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 11039ECB2BAE48FD00EC4FDA /* XCRemoteSwiftPackageReference "SwiftSH" */;
+			productName = CSwiftSH;
+		};
 		49176A3E2666C7E500D32353 /* CSwiftSH */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 49176A3D2666C7E500D32353 /* XCRemoteSwiftPackageReference "SwiftSH" */;
