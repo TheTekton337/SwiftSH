@@ -11,7 +11,7 @@ Pod::Spec.new do |spec|
   spec.swift_version    = '5.3'
   spec.requires_arc     = true
   
-  spec.dependency 'CSSH', '~> 1.11'
+  spec.dependency 'CSSH', :podspec => 'https://github.com/TheTekton337/Libssh2Prebuild/raw/master/CSSH.podspec'
 
   spec.subspec 'Core' do |core|
     core.source_files = 'Sources/SwiftSH/**/*.swift'
