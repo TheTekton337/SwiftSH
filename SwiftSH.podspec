@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name             = 'SwiftSH'
-  spec.version          = '0.1.2'
+  spec.version          = '0.1.3'
   spec.summary          = 'A Swift SSH framework that wraps libssh2.'
   spec.homepage         = 'https://github.com/Frugghi/SwiftSH'
   spec.license          = { :type => 'MIT', :file => 'LICENSE' }
@@ -21,7 +21,7 @@ Pod::Spec.new do |spec|
   spec.subspec 'CSwiftSH' do |cswiftsh|
     cswiftsh.dependency 'SwiftSH/Core'
     cswiftsh.dependency 'CSSH'
-    cswiftsh.source_files = 'Sources/CSwiftSH/*.{h,c,swift}'
+    cswiftsh.source_files = 'Sources/CSwiftSH/**/*.{h,c,swift}'
   end
   
   spec.subspec 'SwiftSH' do |swiftsh|
