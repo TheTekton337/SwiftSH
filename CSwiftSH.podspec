@@ -16,5 +16,5 @@ Pod::Spec.new do |spec|
 
   spec.dependency 'CSSH'
 
-  spec.source_files  = 'Sources/CSwiftSH/**/*.{h,m,swift}'
+  spec.source_files = 'Sources/CSwiftSH/**/*.{h,m,swift}'
 end

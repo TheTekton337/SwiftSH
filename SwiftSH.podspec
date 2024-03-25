@@ -15,22 +15,4 @@ Pod::Spec.new do |spec|
   spec.dependency 'CSwiftSH'
 
   spec.source_files  = 'Sources/SwiftSH/*.{swift}'
-
-  # spec.subspec 'Core' do |core|
-  #   core.source_files = 'Sources/SwiftSH/**/*.swift'
-  #   core.exclude_files = 'Sources/SwiftSH/**/Libssh2*'
-  # end
-  
-  # spec.subspec 'CSwiftSH' do |cswiftsh|
-  #   cswiftsh.dependency 'CSSH'
-  #   # cswiftsh.dependency 'SwiftSH/Core'
-  #   cswiftsh.source_files = 'Sources/CSwiftSH/**/*.{h,c,m,swift}'
-  # end
-  
-  # spec.subspec 'SwiftSH' do |swiftsh|
-  #   swiftsh.dependency 'CSSH'
-  #   # swiftsh.dependency 'SwiftSH/Core'
-  #   swiftsh.dependency 'SwiftSH/CSwiftSH'
-  #   swiftsh.source_files = 'Sources/SwiftSH/*.{swift}'
-  # end
 end
