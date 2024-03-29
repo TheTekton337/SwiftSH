@@ -279,6 +279,8 @@ public class SSHShell: SSHChannel {
 
         // Close the channel
         super.close()
+
+        self.onSessionClose?()
     }
 
     // MARK: - Write

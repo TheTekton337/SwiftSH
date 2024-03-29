@@ -30,6 +30,8 @@ open class SSHChannel {
     public fileprivate(set) var channel: SSHLibraryChannel!
 
     public private(set) var session: SSHSession
+
+    public var onSessionClose: (() -> Void)?
     
     // MARK: - Internal variables
 
