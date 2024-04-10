@@ -24,8 +24,13 @@
 import Foundation
 
 public typealias SSHCompletionBlock = (Error?) -> Void
+public typealias ReadProgressCallback = (_ bytesTransferred: UInt64) -> Void
+public typealias WriteProgressCallback = (_ bytesTransferred: UInt64, _ totalBytes: UInt64) -> Void
+public typealias SCPReadCompletionBlock = (FileInfo?, Data?, Error?) -> Void
+public typealias SCPWriteCompletionBlock = (Int?, Error?) -> Void
 
-open class SSHSession {
+@objc
+open class SSHSession: NSObject {
 
     // MARK: - Internal variables
 
@@ -57,6 +62,9 @@ open class SSHSession {
         self.log = ConsoleLogger(level: .debug, enabled: true)
         self.queue = Queue(label: "SSH Queue", concurrent: false)
         self.session = try sshLibrary.makeSession()
+        
+        super.init()
+        
         self.timeout = 10
 
         self.log.info("\(sshLibrary.name) v\(sshLibrary.version)")

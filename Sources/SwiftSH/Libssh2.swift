@@ -435,6 +435,17 @@ extension Libssh2 {
             let data = UnsafeBufferPointer (start: ptr, count: len)
             return (data.map { $0 }, type)
         }
+        
+        func makeSftpSession() throws -> OpaquePointer {
+            guard let sftpSession = libssh2_sftp_init(session) else {
+                throw self.lastError
+            }
+            return sftpSession
+        }
+        
+        func closeSftpSession(_ session: OpaquePointer) {
+            libssh2_sftp_shutdown(session)
+        }
     }
 }
 
@@ -628,11 +639,21 @@ extension Libssh2 {
             }
         }
         
-        func openSCPChannel(remotePath path: String) throws {
+        func openSCPChannel(localPath path: String, mode: Int32, fileSize: UInt64, mtime: TimeInterval? = nil, atime: TimeInterval? = nil) throws {
+            let mtimeLong = time_t(mtime ?? 0)
+            let atimeLong = time_t(atime ?? 0)
+            
+            self.channel = try libssh2_function(self.session) { session in
+                libssh2_scp_send64(session, path, mode, libssh2_int64_t(fileSize), mtimeLong, atimeLong)
+            }
+        }
+        
+        func openSCPChannel(remotePath path: String) throws -> FileInfo {
             var fileInfo = libssh2_struct_stat()
             self.channel = try libssh2_function(self.session) { session in
                 libssh2_scp_recv2(session, path, &fileInfo)
             }
+            return FileInfo(fromStat: fileInfo)
         }
 
         func setEnvironment(_ environment: Environment) throws {
@@ -706,15 +727,15 @@ extension Libssh2 {
             }
         }
 
-        func read() throws -> Data {
-            return try self.read(0)
+        func read(progress: ReadProgressCallback?) throws -> Data {
+            return try self.read(0,progress: progress)
         }
 
         func readError() throws -> Data {
             return try self.read(SSH_EXTENDED_DATA_STDERR)
         }
 
-        func read(_ streamID: Int32) throws -> Data {
+        func read(_ streamID: Int32, progress: ReadProgressCallback? = nil) throws -> Data {
             guard let channel = self.channel else {
                 throw SSHError.Channel.invalid
             }
@@ -726,6 +747,7 @@ extension Libssh2 {
             }
 
             var data = Data()
+            var totalBytes: UInt64 = 0
 
             var returnCode: Int
             repeat {
@@ -739,13 +761,16 @@ extension Libssh2 {
                     buffer.withMemoryRebound(to: UInt8.self, capacity: returnCode) {
                         data.append(UnsafePointer($0), count: returnCode)
                     }
+                    totalBytes += UInt64(returnCode)
+                    
+                    progress?(totalBytes)
                 }
             } while returnCode > 0 || (returnCode == 0 && libssh2_channel_eof(channel) == 0)
 
             return data
         }
 
-        func write(_ data: Data) -> (error: Error?, bytesSent: Int) {
+        func write(_ data: Data, progress: WriteProgressCallback? = nil) -> (error: Error?, bytesSent: Int) {
             guard let channel = self.channel else {
                 return (error: SSHError.Channel.invalid, bytesSent: 0)
             }
@@ -757,10 +782,14 @@ extension Libssh2 {
             return data.withUnsafeBytes{
                 let buffer = $0.bindMemory(to: Int8.self)
                 
+                let totalBytes = data.count
+                
                 var bytesSent = 0
                 repeat {
-                    let length = min(data.count - bytesSent, self.bufferSize)
+                    let length = min(totalBytes - bytesSent, self.bufferSize)
                     let returnCode = libssh2_channel_write_ex(channel, 0, buffer.baseAddress?.advanced(by: bytesSent), length)
+                    
+                    progress?(UInt64(totalBytes), UInt64(bytesSent))
                     
                     guard returnCode >= 0 || returnCode == Int(LIBSSH2_ERROR_EAGAIN) else {
                         return (error: returnCode.error, bytesSent: bytesSent)

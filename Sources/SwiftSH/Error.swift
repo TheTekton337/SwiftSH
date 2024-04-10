@@ -118,6 +118,7 @@ public enum SSHError: Error {
     public enum SCP: Error {
         case `protocol`
         case invalidPath
+//        case failedToInitiateSCPTransfer(detail:String)
     }
 
     // Command

@@ -26,6 +26,8 @@
 		11039EDF2BAE48FD00EC4FDA /* Libssh2.h in Headers */ = {isa = PBXBuildFile; fileRef = 115864222BAD43A600632D77 /* Libssh2.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		11039EE02BAE48FD00EC4FDA /* SwiftSH.h in Headers */ = {isa = PBXBuildFile; fileRef = 180BD2021B4C622D000DB241 /* SwiftSH.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		1160B2F12BAD442100AC0FF4 /* Libssh2.h in Headers */ = {isa = PBXBuildFile; fileRef = 115864222BAD43A600632D77 /* Libssh2.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		11E2FAA62BC6553B00B8617C /* FileInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E2FAA52BC6553B00B8617C /* FileInfo.swift */; };
+		11E2FAA82BC6716E00B8617C /* SCPTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E2FAA72BC6716E00B8617C /* SCPTransfer.swift */; };
 		180BD2031B4C622D000DB241 /* SwiftSH.h in Headers */ = {isa = PBXBuildFile; fileRef = 180BD2021B4C622D000DB241 /* SwiftSH.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		180BD21C1B4C7367000DB241 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 180BD21B1B4C7367000DB241 /* libz.tbd */; };
 		49176A2F2666C72C00D32353 /* Command.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49176A212666C72C00D32353 /* Command.swift */; };
@@ -63,6 +65,8 @@
 		11039EE52BAE48FD00EC4FDA /* SwiftSH copy.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "SwiftSH copy.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
 		11039EE62BAE48FD00EC4FDA /* SwiftSH copy-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "SwiftSH copy-Info.plist"; path = "/Users/tjtekton/code/TheTekton337/SwiftSH/SwiftSH copy-Info.plist"; sourceTree = "<absolute>"; };
 		115864222BAD43A600632D77 /* Libssh2.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Libssh2.h; sourceTree = "<group>"; };
+		11E2FAA52BC6553B00B8617C /* FileInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FileInfo.swift; path = Sources/SwiftSH/FileInfo.swift; sourceTree = "<group>"; };
+		11E2FAA72BC6716E00B8617C /* SCPTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SCPTransfer.swift; sourceTree = "<group>"; };
 		180BD1FF1B4C622D000DB241 /* SwiftSH.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SwiftSH.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		180BD2021B4C622D000DB241 /* SwiftSH.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SwiftSH.h; sourceTree = "<group>"; };
 		180BD2041B4C622D000DB241 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -128,6 +132,7 @@
 		180BD1F51B4C622D000DB241 = {
 			isa = PBXGroup;
 			children = (
+				11E2FAA52BC6553B00B8617C /* FileInfo.swift */,
 				49176A2D2666C72C00D32353 /* Channel.swift */,
 				49176A212666C72C00D32353 /* Command.swift */,
 				49176A2C2666C72C00D32353 /* ConsoleLogger.swift */,
@@ -138,6 +143,7 @@
 				49176A2A2666C72C00D32353 /* Logger.swift */,
 				49176A272666C72C00D32353 /* Queue.swift */,
 				49176A222666C72C00D32353 /* SCP.swift */,
+				11E2FAA72BC6716E00B8617C /* SCPTransfer.swift */,
 				49176A292666C72C00D32353 /* Session.swift */,
 				49176A242666C72C00D32353 /* SFTP.swift */,
 				49176A2E2666C72C00D32353 /* Shell.swift */,
@@ -414,8 +420,10 @@
 				49176A3B2666C72C00D32353 /* Channel.swift in Sources */,
 				49176A352666C72C00D32353 /* Queue.swift in Sources */,
 				49176A322666C72C00D32353 /* SFTP.swift in Sources */,
+				11E2FAA82BC6716E00B8617C /* SCPTransfer.swift in Sources */,
 				49176A372666C72C00D32353 /* Session.swift in Sources */,
 				49176A2F2666C72C00D32353 /* Command.swift in Sources */,
+				11E2FAA62BC6553B00B8617C /* FileInfo.swift in Sources */,
 				49176A302666C72C00D32353 /* SCP.swift in Sources */,
 				49176A392666C72C00D32353 /* Extensions.swift in Sources */,
 				49176A362666C72C00D32353 /* DNS.swift in Sources */,
