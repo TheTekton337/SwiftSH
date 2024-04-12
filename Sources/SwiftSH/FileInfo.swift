@@ -9,12 +9,12 @@
 import Foundation
 
 @objcMembers public class FileInfo: NSObject {
-    let fileSize: Int64
+    let fileSize: Int32
     let modificationTime: TimeInterval
     let accessTime: TimeInterval
     let permissions: UInt16
     
-    init(fileSize: Int64, modificationTime: TimeInterval, accessTime: TimeInterval, permissions: UInt16) {
+    init(fileSize: Int32, modificationTime: TimeInterval, accessTime: TimeInterval, permissions: UInt16) {
         self.fileSize = fileSize
         self.modificationTime = modificationTime
         self.accessTime = accessTime
@@ -23,7 +23,7 @@ import Foundation
     
     convenience init(fromStat statInfo: stat) {
         self.init(
-            fileSize: Int64(statInfo.st_size),
+            fileSize: Int32(statInfo.st_size),
             modificationTime: TimeInterval(statInfo.st_mtimespec.tv_sec),
             accessTime: TimeInterval(statInfo.st_atimespec.tv_sec),
             permissions: UInt16(statInfo.st_mode)
@@ -34,7 +34,7 @@ import Foundation
         let fileManager = FileManager.default
         
         let attributes = try fileManager.attributesOfItem(atPath: localPath)
-        let fileSize = attributes[.size] as? Int64 ?? 0
+        let fileSize = attributes[.size] as? Int32 ?? 0
         let modificationDate = attributes[.modificationDate] as? Date ?? Date.init()
         let accessDate = attributes[.creationDate] as? Date ?? Date.init()
         let permissions = attributes[.posixPermissions] as? UInt16 ?? 0
@@ -53,20 +53,20 @@ extension FileInfo {
     func toData() -> Data {
         var data = Data()
         
-        // FileSize (Int64)
-        var fileSize = self.fileSize
+        // FileSize (Int32)
+        var fileSize = Int64(self.fileSize)
         data.append(Data(bytes: &fileSize, count: MemoryLayout.size(ofValue: fileSize)))
         
-        // ModificationTime (TimeInterval -> Double -> Int64 for simplicity)
-        var modTime = Int64(self.modificationTime)
+        // ModificationTime (TimeInterval -> Double -> Int32 for simplicity)
+        var modTime = Double(self.modificationTime)
         data.append(Data(bytes: &modTime, count: MemoryLayout.size(ofValue: modTime)))
         
-        // AccessTime (TimeInterval -> Double -> Int64 for simplicity)
-        var accTime = Int64(self.accessTime)
+        // AccessTime (TimeInterval -> Double -> Int32 for simplicity)
+        var accTime = Double(self.accessTime)
         data.append(Data(bytes: &accTime, count: MemoryLayout.size(ofValue: accTime)))
         
-        // Permissions (Int32)
-        var perms = self.permissions
+        // Permissions (Int16)
+        var perms = Int16(self.permissions)
         data.append(Data(bytes: &perms, count: MemoryLayout.size(ofValue: perms)))
         
         return data
