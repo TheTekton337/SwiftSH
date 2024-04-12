@@ -13,20 +13,15 @@ public class SCPTransfer: NSObject {
     
     /// Uploads a file to the remote path using SCP.
     /// - Parameters:
-    ///   - localPath: The local file path to upload.
+    ///   - localPath: The local file path to upload, can be relative to the app's documents directory or absolute.
     ///   - remotePath: The remote path where the file should be uploaded.
     ///   - completion: A completion handler called when the upload completes.
     ///   - progress: A progress callback called with upload progress updates.
     public func upload(localPath: String, remotePath: String, completion: @escaping SCPWriteCompletionBlock, progress: WriteProgressCallback? = nil) {
-        // Here, we're assuming your implementation of SCPSession.upload will use remotePath in some form.
-        // This detail depends on how you implement path handling in SCPSession.
-        
-        scpSession?.upload(localPath, completion: { bytesSent, error in
-            // Implementation detail: handle the completion, possibly mapping SCPSession's completion parameters
-            // to those expected by this method's caller.
+        let resolvedPath = self.resolvePath(localPath)
+        scpSession?.upload(resolvedPath, completion: { bytesSent, error in
             completion(bytesSent, error)
         }, progress: { bytesWritten, totalBytes in
-            // Progress handling, if necessary.
             progress?(bytesWritten, totalBytes)
         })
     }
@@ -34,17 +29,32 @@ public class SCPTransfer: NSObject {
     /// Downloads a file from the remote path to a local path using SCP.
     /// - Parameters:
     ///   - remotePath: The remote file path to download.
-    ///   - localPath: The local path where the file should be saved.
+    ///   - localPath: The local path where the file should be saved, can be relative to the app's documents directory or absolute.
     ///   - completion: A completion handler called when the download completes.
     ///   - progress: A progress callback called with download progress updates.
     public func download(remotePath: String, localPath: String, completion: @escaping SCPReadCompletionBlock, progress: ReadProgressCallback? = nil) {
-        scpSession?.download(remotePath, to: localPath, completion: { fileInfo, data, error in
-            // Implementation detail: handle the completion, possibly mapping SCPSession's completion parameters
-            // to those expected by this method's caller.
+        let resolvedPath = self.resolvePath(localPath)
+        scpSession?.download(remotePath, to: resolvedPath, completion: { fileInfo, data, error in
             completion(fileInfo, data, error)
         }, progress: { bytesRead in
-            // Progress handling, if necessary.
             progress?(bytesRead)
         })
+    }
+    
+    /// Resolves the given file path to an absolute path.
+    /// If the path is relative, it resolves it relative to the app's documents directory.
+    private func resolvePath(_ path: String) -> String {
+        if path.hasPrefix("/") {
+            return path
+        } else {
+            return self.documentsPath(for: path)
+        }
+    }
+    
+    /// Constructs the full path within the app's documents directory for a given filename.
+    private func documentsPath(for fileName: String) -> String {
+        let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
+        let documentsDirectory = paths[0]
+        return (documentsDirectory as NSString).appendingPathComponent(fileName)
     }
 }

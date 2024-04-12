@@ -212,7 +212,6 @@ public class SCPSession: SSHChannel {
         }
     }
 
-
     // MARK: - Additional methods as needed
 }
 
