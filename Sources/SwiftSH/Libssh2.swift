@@ -650,9 +650,11 @@ extension Libssh2 {
         
         func openSCPChannel(remotePath path: String) throws -> FileInfo {
             var fileInfo = libssh2_struct_stat()
-            self.channel = try libssh2_function(self.session) { session in
+            
+            self.channel = try libssh2_scp_function(self.session) { session in
                 libssh2_scp_recv2(session, path, &fileInfo)
             }
+
             return FileInfo(fromStat: fileInfo)
         }
 
@@ -875,11 +877,49 @@ private func libssh2_function<T>(_ session: OpaquePointer, function: (OpaquePoin
     repeat {
         result = function(session)
         returnCode = libssh2_session_last_errno(session)
-    } while returnCode == LIBSSH2_ERROR_EAGAIN
+        if returnCode != LIBSSH2_ERROR_EAGAIN && returnCode != 0 {
+            let errorDetail = getSessionErrorDetail(session)
+            throw returnCode.error(detail: errorDetail, sftp: nil)
+        }
+    } while result == nil && returnCode == LIBSSH2_ERROR_EAGAIN
 
     guard result != nil else {
         throw returnCode.error (detail: getSessionErrorDetail(session), sftp: nil)
     }
 
     return result!
+}
+
+private func libssh2_scp_function<T>(_ session: OpaquePointer, scpOperation: (OpaquePointer) -> T?) throws -> T {
+    var result: T?
+    var returnCode: Int32
+    var retryCount = 0
+    // TODO: Write up scp retry props
+    let maxRetries = 10
+
+    repeat {
+        result = scpOperation(session)
+        returnCode = libssh2_session_last_errno(session)
+
+        if returnCode != LIBSSH2_ERROR_EAGAIN && returnCode != 0 {
+            let errorDetail = getSessionErrorDetail(session)
+            throw returnCode.error(detail: errorDetail, sftp: nil)
+        }
+
+        if returnCode == LIBSSH2_ERROR_EAGAIN {
+            // TODO: Implement a proper delay or use an asynchronous wait mechanism
+            sleep(1)
+            retryCount += 1
+        }
+    } while result == nil && (returnCode == LIBSSH2_ERROR_EAGAIN && retryCount < maxRetries)
+
+    if retryCount >= maxRetries {
+        throw returnCode.error(detail: "SCP operation timed out after \(maxRetries) retries.", sftp: nil)
+    }
+
+    guard let validResult = result else {
+        throw returnCode.error(detail: "Failed to perform SCP operation: No result returned.", sftp: nil)
+    }
+
+    return validResult
 }
