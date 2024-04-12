@@ -1,9 +1,7 @@
 import Foundation
 
-// Assuming SCPReadCompletionBlock, SCPWriteCompletionBlock, ReadProgressCallback, and WriteProgressCallback
-// are defined in the context of your SCPSession or globally.
-
-class SCPTransfer {
+@objc(SCPTransfer)
+public class SCPTransfer: NSObject {
     
     private let sshSession: SSHSession
     private var scpSession: SCPSession?
@@ -49,6 +47,4 @@ class SCPTransfer {
             progress?(bytesRead)
         })
     }
-    
-    // Add additional methods as necessary, such as for directory operations, if supported by your SCP implementation.
 }

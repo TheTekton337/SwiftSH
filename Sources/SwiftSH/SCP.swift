@@ -42,7 +42,6 @@ struct SCPConstants {
     static let fileNotReadableErrorCode = 103
 }
 
-//@available(*, unavailable)
 public class SCPSession: SSHChannel {
     private let sshSession: SSHSession
     
