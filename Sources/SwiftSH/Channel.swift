@@ -145,13 +145,13 @@ open class SSHChannel {
 //            return newSCPSession
 //        }
 //    }
-//    
+//
 //    public func scpSend(path: String, fileSize: UInt64) throws -> SSHLibrarySCP {
 //        // Ensure the channel is open
 //        guard self.channel.opened else {
 //            throw SSHError.Channel.closed
 //        }
-//        
+//
 //        // Try to start an SCP send session
 //        // This is a placeholder; you'll need to replace it with actual libssh2 or equivalent calls
 //        let scpSession = try self.channel.scpSend(path: path, fileSize: fileSize)
@@ -163,7 +163,7 @@ open class SSHChannel {
 //        guard self.channel.opened else {
 //            throw SSHError.Channel.closed
 //        }
-//        
+//
 //        // Try to start an SCP receive session
 //        // This is a placeholder; you'll need to replace it with actual libssh2 or equivalent calls
 //        let scpSession = try self.channel.scpReceive(path: path)
