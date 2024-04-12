@@ -102,11 +102,16 @@ public protocol SSHLibraryChannel {
     func setPseudoTerminalSize(_ terminal: Terminal) throws
     func exec(_ command: String) throws
     func shell() throws
-    func read() throws -> Data
+    func read(progress: ReadProgressCallback?) throws -> Data
     func readError() throws -> Data
-    func write(_ data: Data) -> (error: Error?, bytesSent: Int)
+    func write(_ data: Data, progress: WriteProgressCallback?) -> (error: Error?, bytesSent: Int)
     func exitStatus() -> Int?
     func sendEOF() throws
+    
+    func openSCPChannel(remotePath path: String) throws -> FileInfo
+    func openSCPChannel(localPath path: String, mode: Int32, fileSize: UInt64, mtime: TimeInterval?, atime: TimeInterval?) throws
+//    func scpSend(path: String, fileSize: UInt64, fileData: Data) throws
+//    func scpReceive(path: String) throws -> SSHLibrarySCP
     
 }
 
@@ -119,7 +124,36 @@ public protocol SSHLibrarySFTP {
 // MARK: - SCP
 
 public protocol SSHLibrarySCP {
+    /// Initiates an SCP session for sending a file to the remote host.
+    /// - Parameters:
+    ///   - path: The path where the file will be stored on the remote host.
+    ///   - fileSize: The size of the file in bytes.
+    /// - Throws: An error if the SCP session could not be initiated.
+    func sendInit(path: String, fileSize: UInt64) throws
     
+    /// Transfers a chunk of data to the remote host during an SCP send operation.
+    /// - Parameter data: The data chunk to send.
+    /// - Throws: An error if the data could not be sent.
+    func send(data: Data) throws
+    
+    /// Finalizes the SCP send operation, ensuring all data is flushed and the session is properly closed.
+    /// - Throws: An error if the operation could not be completed successfully.
+    func sendFinish() throws
+    
+    /// Initiates an SCP session for receiving a file from the remote host.
+    /// - Parameter path: The path of the file on the remote host to receive.
+    /// - Returns: Information about the file being received, such as its size.
+    /// - Throws: An error if the SCP session could not be initiated.
+    func receiveInit(path: String) throws -> (fileSize: UInt64, permissions: UInt32)
+    
+    /// Receives a chunk of data from the remote host during an SCP receive operation.
+    /// - Returns: A chunk of data received.
+    /// - Throws: An error if the data could not be received.
+    func receive() throws -> Data
+    
+    /// Finalizes the SCP receive operation, ensuring the session is properly closed.
+    /// - Throws: An error if the operation could not be completed successfully.
+    func receiveFinish() throws
 }
 
 // MARK: - Fingerprint

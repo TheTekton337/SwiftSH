@@ -118,7 +118,7 @@ public class SSHShell: SSHChannel {
                 // Read the response
                 var response: Data?
                 do {
-                    response = try self.channel.read()
+                    response = try self.channel.read(progress: nil)
                     self.session.log.debug("Read \(response?.count ?? 0) bytes")
                 } catch let error {
                     self.session.log.error("[STD] \(error)")
@@ -190,7 +190,7 @@ public class SSHShell: SSHChannel {
                     // Get the message and send it
                     var message = self.messageQueue.last!
                     self.session.log.debug("Sending a message of \(message.data.count) bytes")
-                    let result = self.channel.write(message.data)
+                    let result = self.channel.write(message.data, progress: nil)
 
                     switch result {
                         // We'll send the remaining bytes when the socket is ready
@@ -279,6 +279,8 @@ public class SSHShell: SSHChannel {
 
         // Close the channel
         super.close()
+
+        self.onSessionClose?()
     }
 
     // MARK: - Write

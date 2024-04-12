@@ -112,6 +112,10 @@ class ShellViewController: UIViewController, SSHViewController {
     
     var cmd: SSHCommand!
     @IBAction func connect() {
+        self.shell.onSessionClose = {
+            print("SSH session closed.")
+            // Handle the closed event, such as updating the UI or attempting a reconnection
+        }
         self.shell
             .withCallback { [unowned self] (string: String?, error: String?) in
                 DispatchQueue.main.async {
