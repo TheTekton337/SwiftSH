@@ -50,7 +50,7 @@ import Foundation
 
 extension FileInfo {
     @objc
-    func toData() -> Data {
+    public func toData() -> Data {
         var data = Data()
         
         // FileSize (Int32)
