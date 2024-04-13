@@ -102,7 +102,7 @@ public protocol SSHLibraryChannel {
     func setPseudoTerminalSize(_ terminal: Terminal) throws
     func exec(_ command: String) throws
     func shell() throws
-    func read(progress: ReadProgressCallback?) throws -> Data
+    func read(expectedFileSize: UInt64?, progress: ReadProgressCallback?) throws -> Data
     func readError() throws -> Data
     func write(_ data: Data, progress: WriteProgressCallback?) -> (error: Error?, bytesSent: Int)
     func exitStatus() -> Int?
@@ -110,8 +110,6 @@ public protocol SSHLibraryChannel {
     
     func openSCPChannel(remotePath path: String) throws -> FileInfo
     func openSCPChannel(localPath path: String, mode: Int32, fileSize: UInt64, mtime: TimeInterval?, atime: TimeInterval?) throws
-//    func scpSend(path: String, fileSize: UInt64, fileData: Data) throws
-//    func scpReceive(path: String) throws -> SSHLibrarySCP
     
 }
 

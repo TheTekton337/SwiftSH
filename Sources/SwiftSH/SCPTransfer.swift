@@ -19,7 +19,7 @@ public class SCPTransfer: NSObject {
     ///   - progress: A progress callback called with upload progress updates.
     public func upload(localPath: String, remotePath: String, completion: @escaping SCPWriteCompletionBlock, progress: WriteProgressCallback? = nil) {
         let resolvedPath = self.resolvePath(localPath)
-        scpSession?.upload(resolvedPath, completion: { bytesSent, error in
+        scpSession?.upload(resolvedPath, remotePath: remotePath, completion: { bytesSent, error in
             completion(bytesSent, error)
         }, progress: { bytesWritten, totalBytes in
             progress?(bytesWritten, totalBytes)

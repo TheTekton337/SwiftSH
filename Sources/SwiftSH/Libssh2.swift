@@ -729,15 +729,15 @@ extension Libssh2 {
             }
         }
 
-        func read(progress: ReadProgressCallback?) throws -> Data {
-            return try self.read(0,progress: progress)
+        func read(expectedFileSize: UInt64? = nil, progress: ReadProgressCallback?) throws -> Data {
+            return try self.read(0, expectedFileSize: expectedFileSize, progress: progress)
         }
 
         func readError() throws -> Data {
             return try self.read(SSH_EXTENDED_DATA_STDERR)
         }
 
-        func read(_ streamID: Int32, progress: ReadProgressCallback? = nil) throws -> Data {
+        func read(_ streamID: Int32, expectedFileSize: UInt64? = nil, progress: ReadProgressCallback? = nil) throws -> Data {
             guard let channel = self.channel else {
                 throw SSHError.Channel.invalid
             }
@@ -749,23 +749,33 @@ extension Libssh2 {
             }
 
             var data = Data()
-            var totalBytes: UInt64 = 0
+            var totalBytesRead: UInt64 = 0
 
             var returnCode: Int
             repeat {
                 returnCode = libssh2_channel_read_ex(channel, streamID, buffer, bufferSize)
 
-                guard returnCode >= 0 || returnCode == Int(LIBSSH2_ERROR_EAGAIN) else {
+                if returnCode < 0 && returnCode != Int(LIBSSH2_ERROR_EAGAIN) {
                     throw returnCode.error
                 }
 
                 if returnCode > 0 {
-                    buffer.withMemoryRebound(to: UInt8.self, capacity: returnCode) {
-                        data.append(UnsafePointer($0), count: returnCode)
+                    let bytesToAppend: UInt64
+                    if let fileSize = expectedFileSize {
+                        bytesToAppend = min(UInt64(returnCode), fileSize - totalBytesRead)
+                    } else {
+                        bytesToAppend = UInt64(returnCode)
                     }
-                    totalBytes += UInt64(returnCode)
-                    
-                    progress?(totalBytes)
+
+                    buffer.withMemoryRebound(to: UInt8.self, capacity: returnCode) {
+                        data.append(UnsafePointer($0), count: Int(bytesToAppend))
+                    }
+                    totalBytesRead += bytesToAppend
+                    progress?(totalBytesRead)
+
+                    if let fileSize = expectedFileSize, totalBytesRead >= fileSize {
+                        break
+                    }
                 }
             } while returnCode > 0 || (returnCode == 0 && libssh2_channel_eof(channel) == 0)
 
