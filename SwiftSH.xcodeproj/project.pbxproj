@@ -104,13 +104,13 @@
 		180BD1F51B4C622D000DB241 = {
 			isa = PBXGroup;
 			children = (
-				11E2FAA52BC6553B00B8617C /* FileInfo.swift */,
 				49176A2D2666C72C00D32353 /* Channel.swift */,
 				49176A212666C72C00D32353 /* Command.swift */,
 				49176A2C2666C72C00D32353 /* ConsoleLogger.swift */,
 				49176A282666C72C00D32353 /* DNS.swift */,
 				49176A252666C72C00D32353 /* Error.swift */,
 				49176A2B2666C72C00D32353 /* Extensions.swift */,
+				11E2FAA52BC6553B00B8617C /* FileInfo.swift */,
 				49176A232666C72C00D32353 /* Libssh2.swift */,
 				49176A2A2666C72C00D32353 /* Logger.swift */,
 				49176A272666C72C00D32353 /* Queue.swift */,

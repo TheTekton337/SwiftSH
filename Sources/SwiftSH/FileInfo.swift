@@ -9,10 +9,10 @@
 import Foundation
 
 @objcMembers public class FileInfo: NSObject {
-    let fileSize: Int32
-    let modificationTime: TimeInterval
-    let accessTime: TimeInterval
-    let permissions: UInt16
+    public let fileSize: Int32
+    public let modificationTime: TimeInterval
+    public let accessTime: TimeInterval
+    public let permissions: UInt16
     
     init(fileSize: Int32, modificationTime: TimeInterval, accessTime: TimeInterval, permissions: UInt16) {
         self.fileSize = fileSize
@@ -70,5 +70,27 @@ extension FileInfo {
         data.append(Data(bytes: &perms, count: MemoryLayout.size(ofValue: perms)))
         
         return data
+    }
+    
+    @objc
+    public func toDictionary() -> [String: Any] {
+            return [
+                "fileSize": fileSize,
+                "modificationTime": modificationTime,
+                "accessTime": accessTime,
+                "permissions": permissions
+            ]
+        }
+
+    @objc
+    public func toJSONString() -> String? {
+        let dict = toDictionary()
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: dict, options: .prettyPrinted)
+            return String(data: jsonData, encoding: .utf8)
+        } catch {
+            print("Error converting FileInfo to JSON: \(error)")
+            return nil
+        }
     }
 }
