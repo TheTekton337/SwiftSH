@@ -82,8 +82,10 @@ public class SCPSession: SSHChannel {
     public func download(_ from: String, to path: String, completion: SCPReadCompletionBlock?, progress: ReadProgressCallback?) {
         if let stream = OutputStream(toFileAtPath: path, append: false) {
             stream.open()
-            defer { stream.close() }
-            self.download(from, to: stream, completion: completion, progress: progress)
+            self.download(from, to: stream, completion: { fileInfo, data, error  in
+                completion?(fileInfo, data, error)
+                stream.close()
+            }, progress: progress)
         } else {
             completion?(nil, nil, SSHError.SCP.invalidPath)
         }
@@ -119,17 +121,21 @@ public class SCPSession: SSHChannel {
                 }
                 
                 do {
-                    let data = try self.scpChannel?.read(progress: progress)
+                    let data = try self.scpChannel?.read(expectedFileSize: UInt64(fileInfo.fileSize), progress: progress)
+                    
+                    let expectedFileSize = Int(fileInfo.fileSize)
+                    let actualDataSize = data?.count ?? 0
+                    let writeLength = min(expectedFileSize, actualDataSize)
                     
                     if let data = data {
                         _ = data.withUnsafeBytes {
-                            stream.write($0.bindMemory(to: UInt8.self).baseAddress!, maxLength: data.count)
+                            stream.write($0.bindMemory(to: UInt8.self).baseAddress!, maxLength: writeLength)
                         }
                     }
                     
                     try self.scpChannel?.closeChannel()
 
-                    completion?(fileInfo, nil, nil)
+                    completion?(fileInfo, data, nil)
                 } catch {
                     completion?(fileInfo, nil, error)
                 }
@@ -163,8 +169,8 @@ public class SCPSession: SSHChannel {
     /// - Parameter localPath: The path to the local file to be uploaded.
     /// - Returns: Self, to allow for method chaining.
     @discardableResult
-    public func upload(_ localPath: String) -> Self {
-        self.upload(localPath, completion: nil, progress: nil)
+    public func upload(_ localPath: String, remotePath: String) -> Self {
+        self.upload(localPath, remotePath: remotePath, completion: nil, progress: nil)
         return self
     }
 
@@ -172,14 +178,14 @@ public class SCPSession: SSHChannel {
     /// - Parameters:
     ///   - localPath: The path to the local file to be uploaded.
     ///   - completion: An optional SCPWriteCompletionBlock to handle the upload result.
-    public func upload(_ localPath: String, completion: SCPWriteCompletionBlock?, progress: WriteProgressCallback?) {
+    public func upload(_ localPath: String, remotePath: String, completion: SCPWriteCompletionBlock?, progress: WriteProgressCallback?) {
         session.queue.async {
             do {
                 let fileURL = URL(fileURLWithPath: localPath)
                 let fileData = try Data(contentsOf: fileURL)
                 let fileSize = UInt64(fileData.count)
                 
-                self.openSCPChannelForUpload(localPath: localPath, completion: { error in
+                self.openSCPChannelForUpload(localPath: localPath, remotePath: remotePath, completion: { error in
                     guard error == nil else {
                         completion?(nil, error)
                         return
@@ -216,13 +222,13 @@ public class SCPSession: SSHChannel {
 }
 
 extension SCPSession {
-    public func openSCPChannelForUpload(localPath: String, completion: @escaping (Error?) -> Void) {
+    public func openSCPChannelForUpload(localPath: String, remotePath: String, completion: @escaping (Error?) -> Void) {
         do {
             let fileInfo = try FileInfo.init(fromLocalPath: localPath)
             
             self.scpChannel = self.sshSession.session.makeChannel()
             
-            try self.scpChannel?.openSCPChannel(localPath: localPath, mode: Int32(fileInfo.permissions), fileSize: UInt64(fileInfo.fileSize), mtime: fileInfo.modificationTime, atime: fileInfo.accessTime)
+            try self.scpChannel?.openSCPChannel(localPath: remotePath, mode: Int32(fileInfo.permissions), fileSize: UInt64(fileInfo.fileSize), mtime: fileInfo.modificationTime, atime: fileInfo.accessTime)
             
             completion(nil)
         } catch {

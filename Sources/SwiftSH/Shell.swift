@@ -118,7 +118,7 @@ public class SSHShell: SSHChannel {
                 // Read the response
                 var response: Data?
                 do {
-                    response = try self.channel.read(progress: nil)
+                    response = try self.channel.read(expectedFileSize: nil, progress: nil)
                     self.session.log.debug("Read \(response?.count ?? 0) bytes")
                 } catch let error {
                     self.session.log.error("[STD] \(error)")

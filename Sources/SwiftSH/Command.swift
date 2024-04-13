@@ -106,7 +106,7 @@ public class SSHCommand: SSHChannel {
                 // Read the result
                 var socketClosed = true
                 do {
-                    let data = try self.channel.read(progress:nil)
+                    let data = try self.channel.read(expectedFileSize: nil, progress:nil)
                     if self.response == nil {
                         self.response = Data()
                     }
