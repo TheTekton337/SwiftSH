@@ -116,9 +116,12 @@ public enum SSHError: Error {
 
     // SCP
     public enum SCP: Error {
-        case `protocol`
-        case invalidPath
-//        case failedToInitiateSCPTransfer(detail:String)
+        case unknown(detail:String)
+        case `protocol`(detail:String)
+        case fileRead(detail: String)
+        case invalidPath(detail: String)
+        case uploadVerification(detail: String)
+        case fileInfoUnavailable
     }
 
     // Command

@@ -27,21 +27,6 @@ import Foundation
 import CSwiftSH
 //@_implementationOnly import CSwiftSH
 
-struct SCPConstants {
-    static let scpErrorDomain = "SCPErrorDomain"
-    static let uploadErrorDomain = "UploadErrorDomain"
-    static let fileReadError = "File is not readable."
-    static let invalidPathError = "Invalid path."
-    static let uploadVerificationFailedError = "Upload verification failed."
-    static let fileInfoNilError = "FileInfo is nil."
-    
-    // Error codes
-    static let verificationErrorCode = 1001
-    static let invalidPathErrorCode = 101
-    static let fileTooLargeErrorCode = 102
-    static let fileNotReadableErrorCode = 103
-}
-
 public class SCPSession: SSHChannel {
     private let sshSession: SSHSession
     
@@ -87,7 +72,7 @@ public class SCPSession: SSHChannel {
                 stream.close()
             }, progress: progress)
         } else {
-            completion?(nil, nil, SSHError.SCP.invalidPath)
+            completion?(nil, nil, SSHError.SCP.unknown(detail: "Unable to open file stream for download path \(path)"))
         }
     }
 
@@ -155,7 +140,7 @@ public class SCPSession: SSHChannel {
             if let data = stream.property(forKey: Stream.PropertyKey.dataWrittenToMemoryStreamKey) as? Data {
                 completion(fileInfo, data, error)
             } else {
-                completion(nil, nil, error ?? SSHError.unknown (detail: "Download lacks the data"))
+                completion(nil, nil, error ?? SSHError.SCP.unknown (detail: "Download lacks the data"))
             }
             stream.close()
         } progress: { bytesRead in
@@ -193,15 +178,13 @@ public class SCPSession: SSHChannel {
                     
                     do {
                         guard let result = self.scpChannel?.write(fileData, progress: progress) else {
-                            let error = NSError(domain: SCPConstants.uploadErrorDomain, code: SCPConstants.verificationErrorCode, userInfo: [NSLocalizedDescriptionKey: SCPConstants.uploadVerificationFailedError])
-                            completion?(nil, error)
+                            completion?(nil, SSHError.SCP.uploadVerification(detail: "Upload verification failed scp write."))
                             return
                         }
 
                         let isUploadSuccessful = result.bytesSent == fileSize
                         if !isUploadSuccessful {
-                            let verificationError = NSError(domain: SCPConstants.uploadErrorDomain, code: SCPConstants.verificationErrorCode, userInfo: [NSLocalizedDescriptionKey: SCPConstants.uploadVerificationFailedError])
-                            completion?(nil, verificationError)
+                            completion?(nil, SSHError.SCP.uploadVerification(detail: "Upload verification failed file size."))
                             return
                         }
                         
@@ -217,11 +200,37 @@ public class SCPSession: SSHChannel {
             }
         }
     }
-
-    // MARK: - Additional methods as needed
 }
 
 extension SCPSession {
+    public func openSCPChannelForDownload(remotePath: String, completion: @escaping (FileInfo?, Error?) -> Void) {
+        do {
+            self.scpChannel = self.sshSession.session.makeChannel()
+            
+            let fileInfo = try self.scpChannel?.openSCPChannel(remotePath: remotePath)
+            
+            guard let fileInfo = fileInfo else {
+                completion(nil, SSHError.SCP.fileInfoUnavailable)
+                return
+            }
+            
+//            TODO: Add a prop for scp max file size
+//            if fileInfo.fileSize > MAX_FILE_SIZE {
+//                completion(nil, NSError(domain: "SCPSession", code: 102, userInfo: [NSLocalizedDescriptionKey: "File is too large for download."]))
+//                return
+//            }
+            
+            if (fileInfo.permissions & S_IRUSR) == 0 {
+                completion(nil, SSHError.SCP.fileRead(detail: "Permission denied: You do not have read access to the specified file on the remote host."))
+                return
+            }
+            
+            completion(fileInfo, nil)
+        } catch {
+            completion(nil, error)
+        }
+    }
+    
     public func openSCPChannelForUpload(localPath: String, remotePath: String, completion: @escaping (Error?) -> Void) {
         do {
             let fileInfo = try FileInfo.init(fromLocalPath: localPath)
@@ -233,35 +242,6 @@ extension SCPSession {
             completion(nil)
         } catch {
             completion(error)
-        }
-    }
-    
-    public func openSCPChannelForDownload(remotePath: String, completion: @escaping (FileInfo?, Error?) -> Void) {
-        do {
-            self.scpChannel = self.sshSession.session.makeChannel()
-            
-            let fileInfo = try self.scpChannel?.openSCPChannel(remotePath: remotePath)
-            
-            guard let fileInfo = fileInfo else {
-                completion(nil, NSError(domain: SCPConstants.scpErrorDomain, code: SCPConstants.invalidPathErrorCode, userInfo: [NSLocalizedDescriptionKey: SCPConstants.fileInfoNilError]))
-                return
-            }
-            
-//            TODO: Add a prop for scp max file size
-//            if fileInfo.fileSize > MAX_FILE_SIZE {
-//                completion(nil, NSError(domain: "SCPSession", code: 102, userInfo: [NSLocalizedDescriptionKey: "File is too large for download."]))
-//                return
-//            }
-            
-            // Check for read permissions (assuming UNIX permission bits)
-            if (fileInfo.permissions & S_IRUSR) == 0 {
-                completion(nil, NSError(domain: SCPConstants.scpErrorDomain, code: SCPConstants.fileNotReadableErrorCode, userInfo: [NSLocalizedDescriptionKey: SCPConstants.fileReadError]))
-                return
-            }
-            
-            completion(fileInfo, nil)
-        } catch {
-            completion(nil, error)
         }
     }
 }
