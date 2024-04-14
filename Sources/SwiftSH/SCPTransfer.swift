@@ -1,7 +1,7 @@
 import Foundation
 
 @objc(SCPTransfer)
-public class SCPTransfer: NSObject {    
+public class SCPTransfer: NSObject {
     private let sshSession: SSHSession
     private var scpSession: SCPSession?
     

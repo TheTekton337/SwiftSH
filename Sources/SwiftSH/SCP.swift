@@ -32,6 +32,8 @@ public class SCPSession: SSHChannel {
     
     private var scpChannel: SSHLibraryChannel?
     
+    private var sshCommand: SSHCommand?
+    
     public override init(sshLibrary: SSHLibrary.Type = Libssh2.self, session: SSHSession, environment: [Environment] = [], terminal: Terminal? = nil) throws {
         self.sshSession = session
         try super.init(sshLibrary: sshLibrary, session: session, environment: environment, terminal: terminal)
@@ -99,32 +101,62 @@ public class SCPSession: SSHChannel {
     ///                 The callback provides bytesTransferred
     public func download(_ from: String, to stream: OutputStream, completion: SCPReadCompletionBlock?, progress: ReadProgressCallback?) {
         session.queue.async {
-            self.openSCPChannelForDownload(remotePath: from, completion: { fileInfo, error in
-                guard let fileInfo = fileInfo, error == nil else {
-                    completion?(fileInfo, nil, error)
+            self.fileExists(filePath: from, completion: { fileExists, error in
+                if (error != nil) {
+                    completion?(nil, nil, error)
                     return
                 }
-                
-                do {
-                    let data = try self.scpChannel?.read(expectedFileSize: UInt64(fileInfo.fileSize), progress: progress)
-                    
-                    let expectedFileSize = Int(fileInfo.fileSize)
-                    let actualDataSize = data?.count ?? 0
-                    let writeLength = min(expectedFileSize, actualDataSize)
-                    
-                    if let data = data {
-                        _ = data.withUnsafeBytes {
-                            stream.write($0.bindMemory(to: UInt8.self).baseAddress!, maxLength: writeLength)
-                        }
+                if (!fileExists) {
+                    completion?(nil, nil, SSHError.SCP.invalidPath(detail: "File not found"))
+                    return
+                }
+                self.openSCPChannelForDownload(remotePath: from, completion: { fileInfo, error in
+                    guard let fileInfo = fileInfo, error == nil else {
+                        completion?(fileInfo, nil, error)
+                        return
                     }
                     
-                    try self.scpChannel?.closeChannel()
+                    do {
+                        let data = try self.scpChannel?.read(expectedFileSize: UInt64(fileInfo.fileSize), progress: progress)
+                        
+                        let expectedFileSize = Int(fileInfo.fileSize)
+                        let actualDataSize = data?.count ?? 0
+                        let writeLength = min(expectedFileSize, actualDataSize)
+                        
+                        if let data = data {
+                            _ = data.withUnsafeBytes {
+                                stream.write($0.bindMemory(to: UInt8.self).baseAddress!, maxLength: writeLength)
+                            }
+                        }
+                        
+                        try self.scpChannel?.closeChannel()
 
-                    completion?(fileInfo, data, nil)
-                } catch {
-                    completion?(fileInfo, nil, error)
-                }
+                        completion?(fileInfo, data, nil)
+                    } catch {
+                        completion?(fileInfo, nil, error)
+                    }
+                })
             })
+        }
+    }
+    
+    func fileExists(filePath: String, completion: @escaping (Bool, Error?) -> Void) {
+        do {
+            let safeFilePath = filePath.replacingOccurrences(of: "\"", with: "\\\"")
+            let command = "if [ -e \"\(safeFilePath)\" ]; then echo '1'; else echo '0'; fi"
+            let cmd = try SSHCommand(session: self.session)
+            sshCommand = cmd
+            cmd.execute(command) { (str: String, dat: String?, err: Error?) in
+                if let error = err {
+                    completion(false, error)
+                } else if let data = dat, data.trimmingCharacters(in: .whitespacesAndNewlines) == "1" {
+                    completion(true, nil)
+                } else {
+                    completion(false, nil)
+                }
+            }
+        } catch {
+            completion(false, error)
         }
     }
 

@@ -71,7 +71,7 @@ fileprivate extension Int32 {
             return error
         } else if let error = self.channelError() {
             return error
-        } else if let error = self.scpError() {
+        } else if let error = self.scpError(detail: detail) {
             return error
         } else if let error = self.sftpError(sftp: sftp) {
             return error
@@ -141,9 +141,9 @@ fileprivate extension Int32 {
         }
     }
     
-    private func scpError() -> SSHError.SCP? {
+    private func scpError(detail: String) -> SSHError.SCP? {
         switch self {
-        case LIBSSH2_ERROR_SCP_PROTOCOL: return .protocol
+        case LIBSSH2_ERROR_SCP_PROTOCOL: return .protocol(detail: detail)
         default: return nil
         }
     }
