@@ -30,16 +30,8 @@ open class SSHChannel {
     public fileprivate(set) var channel: SSHLibraryChannel!
 
     public private(set) var session: SSHSession
-//    private(set) var _scpSession: SCPSession?
 
     public var onSessionClose: (() -> Void)?
-    
-//    public var scpSession: SCPSession? {
-//        if _scpSession == nil {
-//            _scpSession = SCPSession(sshSession: self.session)
-//        }
-//        return _scpSession
-//    }
     
     // MARK: - Internal variables
 
@@ -133,42 +125,6 @@ open class SSHChannel {
             self.session.disconnect(completion)
         }
     }
-    
-    // MARK: - SCP
-    
-//    public func getOrCreateSCPSession() throws -> SCPSession {
-//        if let scpSession = self.scpSession {
-//            return scpSession
-//        } else {
-//            let newSCPSession = try SCPSession(session: self.session)
-//            self.scpSession = newSCPSession
-//            return newSCPSession
-//        }
-//    }
-//
-//    public func scpSend(path: String, fileSize: UInt64) throws -> SSHLibrarySCP {
-//        // Ensure the channel is open
-//        guard self.channel.opened else {
-//            throw SSHError.Channel.closed
-//        }
-//
-//        // Try to start an SCP send session
-//        // This is a placeholder; you'll need to replace it with actual libssh2 or equivalent calls
-//        let scpSession = try self.channel.scpSend(path: path, fileSize: fileSize)
-//        return scpSession
-//    }
-//
-//    public func scpReceive(path: String) throws -> SSHLibrarySCP {
-//        // Ensure the channel is open
-//        guard self.channel.opened else {
-//            throw SSHError.Channel.closed
-//        }
-//
-//        // Try to start an SCP receive session
-//        // This is a placeholder; you'll need to replace it with actual libssh2 or equivalent calls
-//        let scpSession = try self.channel.scpReceive(path: path)
-//        return scpSession
-//    }
 
     // MARK: - Terminal
     @discardableResult
