@@ -1,222 +1,191 @@
-//
-// The MIT License (MIT)
-//
-// Copyright (c) 2017 Tommaso Madonia
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-//
 import Foundation
 
 public class SSHCommand: SSHChannel {
-
+    
+    // MARK: - Type aliases
+    
+    public typealias CompletionHandler = (String, Data?, Error?) -> Void
+    public typealias StringCompletionHandler = (String, String?, Error?) -> Void
+    
     // MARK: - Internal variables
-
-    internal var socketSource: DispatchSourceRead?
-    internal var timeoutSource: DispatchSourceTimer?
-
+    
+    private var timeoutSource: DispatchSourceTimer?
+    
     // MARK: - Initialization
 
-    public override init(sshLibrary: SSHLibrary.Type = Libssh2.self, host: String, port: UInt16 = 22, environment: [Environment] = [], terminal: Terminal? = nil) throws {
-        try super.init(sshLibrary: sshLibrary, host: host, port: port, environment: environment, terminal: terminal)
+    public override init(sshLibrary: SSHLibrary.Type = Libssh2.self, host: String, port: UInt16 = 22, environment: [Environment] = [], terminal: Terminal? = nil, queueType: QueueType = .general) throws {
+        try super.init(sshLibrary: sshLibrary, host: host, port: port, environment: environment, terminal: terminal, queueType: queueType)
     }
 
-    public override init(sshLibrary: SSHLibrary.Type = Libssh2.self, session: SSHSession, environment: [Environment] = [], terminal: Terminal? = nil) throws {
-        try super.init(sshLibrary: sshLibrary, session: session, environment: environment, terminal: terminal)
+    public override init(sshLibrary: SSHLibrary.Type = Libssh2.self, session: SSHSession, environment: [Environment] = [], terminal: Terminal? = nil, queueType: QueueType = .general) throws {
+        try super.init(sshLibrary: sshLibrary, session: session, environment: environment, terminal: terminal, queueType: queueType)
     }
 
     deinit {
         self.cancelSources()
     }
+    
+    // MARK: - Resource Management
+    
+    private func cancelSources() {
+        if (timeoutSource != nil) {
+            timeoutSource?.cancel()
+        }
+    }
 
     public override func close() {
         self.cancelSources()
-
-        session.queue.async {
+        session.generalQueue.async {
+            let prevBlockingMode = super.session.session.blocking
             super.close()
+            super.session.session.blocking = prevBlockingMode
         }
     }
     
-    private func cancelSources() {
-        if let timeoutSource = self.timeoutSource, !timeoutSource.isCancelled {
-            timeoutSource.cancel()
-        }
-        
-        if let socketSource = self.socketSource, !socketSource.isCancelled {
-            socketSource.cancel()
-        }
-    }
-
-    // MARK: - Execute
-
+    // MARK: - Command Execution
+    
+    private var command: String?
+    private var completion: CompletionHandler?
+    
     private var response: Data?
     private var error: Data?
 
-    public func execute(_ command: String, completion: ((String, Data?, Error?) -> Void)?) {
-        session.queue.async(completion: { (error: Error?) in
+    public func execute(_ command: String, completion: (CompletionHandler)?) {
+        self.command = command
+        self.completion = completion
+        self.prepareForExecution(command: command) { (cmd, data, error) in
+            completion?(cmd, data, error)
+        }
+    }
+
+    public func execute(_ command: String, completion: (StringCompletionHandler)?) {
+        self.execute(command) { (cmd: String, data: Data? , error: Error?) in
+            let resultString = data.flatMap { String(data: $0, encoding: .utf8) }
+            completion?(cmd, resultString, error)
+        }
+    }
+    
+    // MARK: - Execution Helpers
+    
+    private var readTimer: DispatchSourceTimer?
+
+    private func prepareForExecution(command: String, completion: @escaping CompletionHandler) {
+        session.generalQueue.async(completion: { (error: Error?) in
             if let error = error {
                 self.close()
-
-                if let completion = completion {
-                    completion(command, nil, error)
-                }
+                completion(command, nil, error)
             }
         }, block: {
             self.response = nil
             self.error = nil
-
-            // Open the channel
-            try self.open()
-
-            // Read the received data
-            self.socketSource = DispatchSource.makeReadSource(fileDescriptor: CFSocketGetNative(self.session.socket), queue: self.session.queue.queue)
-            guard let socketSource = self.socketSource else {
-                throw SSHError.allocation(detail: "")
-            }
-
-            socketSource.setEventHandler { [weak self] in
-                guard let self = self, let timeoutSource = self.timeoutSource else {
-                    return
-                }
-                
-                // Suspend the timer to prevent calling completion two times
-                timeoutSource.suspend()
-                defer {
-                    timeoutSource.resume()
-                }
-
-                // Set non-blocking mode
-                self.session.session.blocking = false
-
-                // Read the result
-                var socketClosed = true
-                do {
-                    let data = try self.channel.read(expectedFileSize: nil, progress:nil)
-                    if self.response == nil {
-                        self.response = Data()
-                    }
-
-                    self.response!.append(data)
-                    
-                    socketClosed = false
-                } catch let error {
-                    self.session.log.error("[STD] \(error)")
-                }
-
-                // Read the error
-                do {
-                    let data = try self.channel.readError()
-                    if data.count > 0 {
-                        if self.error == nil {
-                            self.error = Data()
-                        }
-
-                        self.error!.append(data)
-                    }
-                    
-                    socketClosed = false
-                } catch let error {
-                    self.session.log.error("[ERR] \(error)")
-                }
-
-                // Check if we can return the response
-                if self.channel.receivedEOF || self.channel.exitStatus() != nil || socketClosed {
-                    defer {
-                        self.cancelSources()
-                    }
-
-                    if let completion = completion {
-                        let result = self.response
-                        var error: Error?
-                        if let message = self.error {
-                            error = SSHError.Command.execError(String(data: message, encoding: .utf8), message)
-                        }
-
-                        self.session.queue.callbackQueue.async {
-                            completion(command, result, error)
-                        }
-                    }
-                }
-            }
-            socketSource.setCancelHandler { [weak self] in
-                self?.close()
-            }
-
-            // Create the timeout handler
-            self.timeoutSource = DispatchSource.makeTimerSource(queue: self.session.queue.queue)
-            guard let timeoutSource = self.timeoutSource else {
-                throw SSHError.allocation(detail:"")
-            }
-
-            timeoutSource.setEventHandler { [weak self] in
-                guard let self = self else {
-                    return
-                }
-                
-                self.cancelSources()
-
-                if let completion = completion {
-                    let result = self.response
-                    
-                    self.session.queue.callbackQueue.async {
-                        completion(command, result, SSHError.timeout(detail:"timeout DispatchSource"))
-                    }
-                }
-            }
-            timeoutSource.schedule(deadline: .now() + self.session.timeout, repeating: self.session.timeout, leeway: .seconds(10))
             
-            // Set blocking mode
+            try self.open(channelType: "session")
+            try self.setupTimeoutSource(command: command, completion: completion)
             self.session.session.blocking = true
-            
-            // Execute the command
             try self.channel.exec(command)
-            
-            // Set non-blocking mode
             self.session.session.blocking = false
+            self.timeoutSource?.resume()
+            self.session.log.debug("Exec called for command: \(command)")
             
-            // Start listening for new data
-            timeoutSource.resume()
-            socketSource.resume()
+            self.readTimer = DispatchSource.makeTimerSource(queue: self.session.generalQueue.queue)
+            self.readTimer?.schedule(deadline: .now(), repeating: .milliseconds(50))
+            self.readTimer?.setEventHandler { [weak self] in
+                guard let self = self else {
+                    print("readTimer event init fail")
+                    return
+                }
+                self.handleReadDataEvent()
+            }
+            self.readTimer?.resume()
         })
     }
+    
+    private func setupTimeoutSource(command: String, completion: @escaping CompletionHandler) throws {
+        self.timeoutSource = DispatchSource.makeTimerSource(queue: self.session.generalQueue.queue)
+        self.timeoutSource?.schedule(deadline: .now() + self.session.timeout, repeating: .never)
+        self.timeoutSource?.setEventHandler(handler: { [weak self] in
+            self?.handleTimeout(command: command, completion: completion)
+        })
+    }
+    
+    // MARK: Channel Data Available
+    
+    override func notifyDataAvailable() {
+        super.notifyDataAvailable()
+        handleReadDataEvent()
+    }
 
-    public func execute(_ command: String, completion: ((String, String?, Error?) -> Void)?) {
-        self.execute(command) { (command: String, result: Data?, error: Error?) -> Void in
-            guard let completion = completion else {
-                return
-            }
+    private func handleReadDataEvent() {
+        guard let timeoutSource = self.timeoutSource else {
+            print("handleSocketEvent: timeoutSource cannot be nil")
+            return
+        }
 
-            var stringResult: String?
-            if let result = result {
-                stringResult = String(data: result, encoding: .utf8)
-            }
+        timeoutSource.suspend()
+        defer { timeoutSource.resume() }
 
-            completion(command, stringResult, error)
+        self.readChannelData()
+        
+        if self.shouldCompleteOperation() {
+            self.finishOperation()
         }
     }
 
-    public func connect () -> Self {
-        session.connect()
-        return self
+    private func handleTimeout(command: String, completion: @escaping (String, Data?, Error?) -> Void) {
+        self.cancelSources()
+        let error = SSHError.timeout(detail: "Command execution timed out.")
+        completion(command, nil, error)
+    }
+
+    private func readChannelData() {
+        session.generalQueue.async {
+            do {
+                self.session.session.blocking = false
+                let data = try self.channel.read(expectedFileSize: nil, progress: nil)
+                if self.response == nil {
+                    self.response = Data()
+                }
+                self.response?.append(data)
+                if self.channel.receivedEOF {
+                    self.readTimer?.cancel()
+                }
+            } catch {
+                self.session.log.error("[STD] readChannelData: \(error)")
+            }
+            
+            do {
+                let errorData = try self.channel.readError()
+                if !errorData.isEmpty {
+                    if self.error == nil {
+                        self.error = Data()
+                    }
+                    self.error?.append(errorData)
+                }
+            } catch {
+                self.session.log.error("[ERR] readChannelData: \(error)")
+            }
+        }
+    }
+
+    private func shouldCompleteOperation() -> Bool {
+        return self.channel.receivedEOF || self.channel.exitStatus() != nil
     }
     
-    public func authenticate (_ challenge: AuthenticationChallenge?) -> Self {
-        session.authenticate(challenge)
-        return self
+    private func finishOperation() {
+        guard let completion = self.completion, let command = self.command else {
+            self.session.log.debug("finishOperation fail")
+            return
+        }
+        
+        let error = self.error.map { SSHError.Command.execError(String(data: $0, encoding: .utf8), $0) }
+        completion(command, self.response, error)
+        
+        self.session.generalQueue.async {
+            self.cancelSources()
+            self.close()
+        }
+        
+        self.completion = nil
+        self.command = nil
     }
 }

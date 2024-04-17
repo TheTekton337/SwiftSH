@@ -606,7 +606,7 @@ extension Libssh2 {
 extension Libssh2 {
 
     fileprivate class Channel: SSHLibraryChannel {
-
+        
         var session: OpaquePointer
         var channel: OpaquePointer?
         var bufferSize: Int = 32_768
@@ -631,9 +631,8 @@ extension Libssh2 {
                 libssh2_channel_free(channel)
             }
         }
-
-        func openChannel() throws {
-            let channelType = "session"
+        
+        func openChannel(channelType: String = "session") throws {
             self.channel = try libssh2_function(self.session) { session in
                 libssh2_channel_open_ex(session, channelType, UInt32(channelType.utf8.count), 2 * 1024 * 1024, UInt32(LIBSSH2_CHANNEL_PACKET_DEFAULT), nil, 0)
             }
@@ -643,7 +642,7 @@ extension Libssh2 {
             let mtimeLong = time_t(mtime ?? 0)
             let atimeLong = time_t(atime ?? 0)
             
-            self.channel = try libssh2_function(self.session) { session in
+            self.channel = try libssh2_scp_function(self.session) { session in
                 libssh2_scp_send64(session, path, mode, libssh2_int64_t(fileSize), mtimeLong, atimeLong)
             }
         }
@@ -801,15 +800,15 @@ extension Libssh2 {
                     let length = min(totalBytes - bytesSent, self.bufferSize)
                     let returnCode = libssh2_channel_write_ex(channel, 0, buffer.baseAddress?.advanced(by: bytesSent), length)
                     
-                    progress?(UInt64(totalBytes), UInt64(bytesSent))
-                    
-                    guard returnCode >= 0 || returnCode == Int(LIBSSH2_ERROR_EAGAIN) else {
+                    if returnCode < 0 && returnCode != Int(LIBSSH2_ERROR_EAGAIN) {
                         return (error: returnCode.error, bytesSent: bytesSent)
                     }
                     
                     if returnCode > 0 {
                         bytesSent += returnCode
                     }
+                    
+                    progress?(UInt64(bytesSent), UInt64(totalBytes))
                 } while bytesSent < data.count
                 
                 return (error: nil, bytesSent: bytesSent)
@@ -834,6 +833,10 @@ extension Libssh2 {
             try libssh2_function {
                 libssh2_channel_send_eof(channel)
             }
+        }
+        
+        func notifyDataAvailable() {
+//            Placeholder for super
         }
 
     }
@@ -891,8 +894,8 @@ private func libssh2_function<T>(_ session: OpaquePointer, function: (OpaquePoin
             let errorDetail = getSessionErrorDetail(session)
             throw returnCode.error(detail: errorDetail, sftp: nil)
         }
-    } while result == nil && returnCode == LIBSSH2_ERROR_EAGAIN
-
+    } while returnCode == LIBSSH2_ERROR_EAGAIN
+        
     guard result != nil else {
         throw returnCode.error (detail: getSessionErrorDetail(session), sftp: nil)
     }
@@ -903,9 +906,6 @@ private func libssh2_function<T>(_ session: OpaquePointer, function: (OpaquePoin
 private func libssh2_scp_function<T>(_ session: OpaquePointer, scpOperation: (OpaquePointer) -> T?) throws -> T {
     var result: T?
     var returnCode: Int32
-    var retryCount = 0
-    // TODO: Write up scp retry props
-    let maxRetries = 10
 
     repeat {
         result = scpOperation(session)
@@ -915,17 +915,7 @@ private func libssh2_scp_function<T>(_ session: OpaquePointer, scpOperation: (Op
             let errorDetail = getSessionErrorDetail(session)
             throw returnCode.error(detail: errorDetail, sftp: nil)
         }
-
-        if returnCode == LIBSSH2_ERROR_EAGAIN {
-            // TODO: Implement a proper delay or use an asynchronous wait mechanism
-            sleep(1)
-            retryCount += 1
-        }
-    } while result == nil && (returnCode == LIBSSH2_ERROR_EAGAIN && retryCount < maxRetries)
-
-    if retryCount >= maxRetries {
-        throw returnCode.error(detail: "SCP operation timed out after \(maxRetries) retries.", sftp: nil)
-    }
+    } while result == nil && (returnCode == LIBSSH2_ERROR_EAGAIN)
 
     guard let validResult = result else {
         throw returnCode.error(detail: "Failed to perform SCP operation: No result returned.", sftp: nil)
