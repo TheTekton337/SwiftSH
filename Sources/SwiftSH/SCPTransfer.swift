@@ -5,9 +5,9 @@ public class SCPTransfer: NSObject {
     private var sshSession: SSHSession
     private var scpSession: SCPSession
     
-    public init(sshLibrary: SSHLibrary.Type = Libssh2.self, sshSession: SSHSession) throws {
+    public init(sshLibrary: SSHLibrary.Type = Libssh2.self, sshSession: SSHSession, scpSession: SCPSession) throws {
         self.sshSession = sshSession
-        self.scpSession = try SCPSession(sshLibrary: sshLibrary, session: sshSession)
+        self.scpSession = scpSession
     }
     
     /// Uploads a file to the remote path using SCP.

@@ -34,15 +34,17 @@ public class SSHShell: SSHChannel {
     // MARK: - Private variables
 
     fileprivate var messageQueue: [Message] = []
+    fileprivate var channels = [SSHChannel]()
 
     // MARK: - Initialization
 
-    public override init(sshLibrary: SSHLibrary.Type = Libssh2.self, host: String, port: UInt16 = 22, environment: [Environment] = [], terminal: Terminal? = nil) throws {
-        try super.init(sshLibrary: sshLibrary, host: host, port: port, environment: environment, terminal: terminal)
+    public override init(sshLibrary: SSHLibrary.Type = Libssh2.self, host: String, port: UInt16 = 22, environment: [Environment] = [], terminal: Terminal? = nil, queueType: QueueType = .general) throws {
+        try super.init(sshLibrary: sshLibrary, host: host, port: port, environment: environment, terminal: terminal, queueType: queueType)
     }
     
-    public override init(sshLibrary: SSHLibrary.Type = Libssh2.self, session: SSHSession, environment: [Environment] = [], terminal: Terminal? = nil) throws {
-        try super.init(sshLibrary: sshLibrary, session: session, environment: environment, terminal: terminal)
+    public override init(sshLibrary: SSHLibrary.Type = Libssh2.self, session: SSHSession, environment: [Environment] = [], terminal: Terminal? = nil, queueType: QueueType = .general) throws {
+        try super.init(sshLibrary: sshLibrary, session: session, environment: environment, terminal: terminal, queueType: queueType)
+        self.addChannel(self)
     }
 
     deinit {
@@ -53,6 +55,16 @@ public class SSHShell: SSHChannel {
         if let writeSource = self.writeSource, !writeSource.isCancelled {
             writeSource.cancel()
         }
+    }
+    
+    // MARK: - Channels
+    
+    public func addChannel(_ channel: SSHChannel) {
+        channels.append(channel)
+    }
+
+    public func removeChannel(_ channel: SSHChannel) {
+        channels.removeAll { $0 === channel }
     }
 
     // MARK: - Callback
@@ -93,20 +105,21 @@ public class SSHShell: SSHChannel {
     }
 
     public func open(_ completion: SSHCompletionBlock?) {
-        session.queue.async(completion: completion) {
+        session.generalQueue.async(completion: completion) {
             // Open the channel
             try super.open()
             
             self.session.log.debug("Opening the shell...")
 
             // Read the received data
-            self.readSource = DispatchSource.makeReadSource(fileDescriptor: CFSocketGetNative(self.session.socket), queue: self.session.queue.queue)
+            self.readSource = DispatchSource.makeReadSource(fileDescriptor: CFSocketGetNative(self.session.socket), queue: self.session.generalQueue.queue)
             guard let readSource = self.readSource else {
                 throw SSHError.allocation(detail: "Could not create the read source on the socket")
             }
 
             readSource.setEventHandler { [weak self] in
                 guard let self = self else {
+                    print("Handle socket read fail")
                     return
                 }
                 
@@ -114,16 +127,15 @@ public class SSHShell: SSHChannel {
                 
                 // Set non-blocking mode
                 self.session.session.blocking = false
-
+                
                 // Read the response
                 var response: Data?
                 do {
                     response = try self.channel.read(expectedFileSize: nil, progress: nil)
-                    self.session.log.debug("Read \(response?.count ?? 0) bytes")
                 } catch let error {
                     self.session.log.error("[STD] \(error)")
                 }
-
+                
                 // Read the error
                 var error: Data?
                 do {
@@ -134,29 +146,29 @@ public class SSHShell: SSHChannel {
                 } catch let error {
                     self.session.log.error("[ERR] \(error)")
                 }
-
+                
                 // Call the callbacks
                 if let callback = self.readStringCallback {
-                    self.session.queue.callbackQueue.async {
+                    self.session.generalQueue.callbackQueue.async {
                         var responseString: String?
                         if let data = response {
                             responseString = String(data: data, encoding: .utf8)
                         }
-
+                        
                         var errorString: String?
                         if let data = error {
                             errorString = String(data: data, encoding: .utf8)
                         }
-
+                        
                         callback(responseString, errorString)
                     }
                 }
                 if let callback = self.readDataCallback, response != nil || error != nil {
-                    self.session.queue.callbackQueue.async {
+                    self.session.generalQueue.callbackQueue.async {
                         callback(response, error)
                     }
                 }
-
+                
                 // Check if the host has closed the channel
                 let receivedEOF = self.channel.receivedEOF
                 let socketClosed = (response == nil && error == nil)
@@ -168,10 +180,12 @@ public class SSHShell: SSHChannel {
                     }
                     self.close()
                 }
+                
+                channels.forEach({ $0.notifyDataAvailable() })
             }
 
             // Write the input data
-            self.writeSource = DispatchSource.makeWriteSource(fileDescriptor: CFSocketGetNative(self.session.socket), queue: self.session.queue.queue)
+            self.writeSource = DispatchSource.makeWriteSource(fileDescriptor: CFSocketGetNative(self.session.socket), queue: self.session.generalQueue.queue)
             guard let writeSource = self.writeSource else {
                 throw SSHError.allocation(detail: "Creating writing source for the socket")
             }
@@ -196,14 +210,14 @@ public class SSHShell: SSHChannel {
                         // We'll send the remaining bytes when the socket is ready
                         case (SSHError.again?, let bytesSent):
                             message.data.removeFirst(bytesSent)
-                        self.session.log.debug("Sent \(bytesSent) bytes (\(message.data.count) bytes remaining)")
+                            self.session.log.debug("Sent \(bytesSent) bytes (\(message.data.count) bytes remaining)")
 
                         // Done, call the callback
                         case (let error, _):
                             self.messageQueue.removeLast()
-                        self.session.log.debug("Message sent (\(self.messageQueue.count) remaining)")
+                            self.session.log.debug("Message sent (\(self.messageQueue.count) remaining)")
                             if let completion = message.callback {
-                                self.session.queue.callbackQueue.async {
+                                self.session.generalQueue.callbackQueue.async {
                                     completion(error)
                                 }
                             }
@@ -241,13 +255,17 @@ public class SSHShell: SSHChannel {
             self.session.log.debug("Shell opened successfully")
         }
     }
+    
+    override func notifyDataAvailable() {
+        super.notifyDataAvailable()
+    }
 
     public func close(_ completion: (() -> Void)?) {
-        session.queue.async {
+        session.generalQueue.async {
             self.close()
 
             if let completion = completion {
-                self.session.queue.callbackQueue.async {
+                self.session.generalQueue.callbackQueue.async {
                     completion()
                 }
             }
@@ -255,7 +273,7 @@ public class SSHShell: SSHChannel {
     }
 
     internal override func close() {
-        assert(session.queue.current)
+        assert(session.generalQueue.current)
         
         session.log.debug("Closing the shell...")
         
@@ -292,7 +310,7 @@ public class SSHShell: SSHChannel {
     }
 
     public func write(_ data: Data, completion: ((Error?) -> Void)?) {
-        session.queue.async {
+        session.generalQueue.async {
             // Insert the message in the message queue
             let message = Message(data: data, callback: completion)
             self.messageQueue.insert(message, at: 0)
@@ -315,7 +333,7 @@ public class SSHShell: SSHChannel {
     public func write(_ command: String, completion: ((Error?) -> Void)?) {
         guard let data = command.data(using: .utf8) else {
             if let completion = completion {
-                session.queue.callbackQueue.async {
+                session.generalQueue.callbackQueue.async {
                     completion(SSHError.invalid (detail: "Could not encode the command as utf-8"))
                 }
             }

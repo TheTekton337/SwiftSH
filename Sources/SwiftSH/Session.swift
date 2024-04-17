@@ -29,12 +29,24 @@ public typealias WriteProgressCallback = (_ bytesTransferred: UInt64, _ totalByt
 public typealias SCPReadCompletionBlock = (FileInfo?, Data?, Error?) -> Void
 public typealias SCPWriteCompletionBlock = (Int?, Error?) -> Void
 
+public enum QueueType {
+    case general
+    case command
+}
+
+struct BlockDirection: OptionSet {
+    let rawValue: Int
+    static let inbound = BlockDirection(rawValue: 1 << 0)
+    static let outbound = BlockDirection(rawValue: 1 << 1)
+}
+
 @objc
 open class SSHSession: NSObject {
 
     // MARK: - Internal variables
 
-    internal let queue: Queue
+    internal let generalQueue: Queue
+    internal let commandQueue: Queue
     public var session: SSHLibrarySession
     internal var socket: CFSocket?
     internal let sshLibrary: SSHLibrary.Type
@@ -60,7 +72,8 @@ open class SSHSession: NSObject {
         self.host = host
         self.port = port
         self.log = ConsoleLogger(level: .debug, enabled: true)
-        self.queue = Queue(label: "SSH Queue", concurrent: false)
+        self.generalQueue = Queue(label: "SSH Queue", concurrent: false)
+        self.commandQueue = Queue(label: "SSH Command Queue", concurrent: false)
         self.session = try sshLibrary.makeSession()
         
         super.init()
@@ -69,14 +82,19 @@ open class SSHSession: NSObject {
 
         self.log.info("\(sshLibrary.name) v\(sshLibrary.version)")
     }
-
-    public func setCallbackQueue (queue: DispatchQueue)
-    {
-        self.queue.callbackQueue = queue
-    }
     
     deinit {
         self.disconnect()
+    }
+    
+    // MARK: - Queue Management
+    public func setCallbackQueue(for queueType: QueueType, queue: DispatchQueue) {
+        switch queueType {
+        case .general:
+            self.generalQueue.callbackQueue = queue
+        case .command:
+            self.commandQueue.callbackQueue = queue
+        }
     }
 
     // MARK: - Connection
@@ -116,7 +134,7 @@ open class SSHSession: NSObject {
     }
 
     public func connect(_ completion: SSHCompletionBlock?) {
-        self.queue.async(completion: completion) {
+        self.generalQueue.async(completion: completion) {
             defer {
                 if !self.connected {
                     self.disconnect()
@@ -234,11 +252,11 @@ open class SSHSession: NSObject {
     }
 
     public func disconnect(_ completion: (() -> Void)?) {
-        self.queue.async {
+        self.generalQueue.async {
             self.disconnect()
 
             if let completion = completion {
-                self.queue.callbackQueue.async {
+                self.generalQueue.callbackQueue.async {
                     completion()
                 }
             }
@@ -246,7 +264,7 @@ open class SSHSession: NSObject {
     }
 
     fileprivate func disconnect() {
-        self.queue.sync {
+        self.generalQueue.sync {
             self.log.info("Bye bye")
 
             // Disconnect the session
@@ -277,11 +295,11 @@ open class SSHSession: NSObject {
 
     /// A boolean value indicating whether the session has been successfully authenticated.
     public var authenticated: Bool {
-        return self.queue.sync { self.session.authenticated }
+        return self.generalQueue.sync { self.session.authenticated }
     }
 
     public func supportedAuthenticationMethods(_ username: String) throws -> [AuthenticationMethod] {
-        return try self.queue.sync {
+        return try self.generalQueue.sync {
             try self.session.authenticationList(username).map { AuthenticationMethod($0) }
         }
     }
@@ -294,7 +312,7 @@ open class SSHSession: NSObject {
     }
 
     public func authenticate(_ challenge: AuthenticationChallenge?, completion: SSHCompletionBlock?) {
-        self.queue.async(completion: completion) {
+        self.generalQueue.async(completion: completion) {
             guard let challenge = challenge, !self.authenticated else {
                 return
             }
@@ -343,7 +361,7 @@ open class SSHSession: NSObject {
     
     @discardableResult
     public func checkFingerprint(_ callback: @escaping ([FingerprintHashType: String]) -> Bool) -> Self {
-        self.queue.async {
+        self.generalQueue.async {
             guard self.connected else {
                 return
             }
