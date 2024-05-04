@@ -77,16 +77,17 @@ class CommandViewController: UIViewController, SSHViewController {
     func performCommand(_ command: String) {
         self.commandTextField.resignFirstResponder()
         
-        self.command
-            .connect()
-            .authenticate(self.authenticationChallenge)
-            .execute(command) { [unowned self] (command, result: String?, error) in
-                if let result = result {
-                    self.textView.text = result
-                } else {
-                    self.textView.text = "ERROR: \(String(describing: error))"
-                }
-            }
+//        TODO: Review .connect() member missing error
+//        self.command
+//            .connect()
+//            .authenticate(self.authenticationChallenge)
+//            .execute(command) { [unowned self] (command: String, result: String?, error: Error?) in
+//                if let result = result {
+//                    self.textView.text = result
+//                } else {
+//                    self.textView.text = "ERROR: \(String(describing: error))"
+//                }
+//            }
     }
     
     func askForPassword(_ challenge: String) {
