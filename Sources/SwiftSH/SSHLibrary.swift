@@ -103,10 +103,10 @@ public protocol SSHLibraryChannel {
     func exec(_ command: String) throws
     func shell() throws
     func notifyDataAvailable()
-    func read(expectedFileSize: UInt64?, progress: ReadProgressCallback?) throws -> Data
-    func read(_ streamID: Int32, expectedFileSize: UInt64?, progress: ReadProgressCallback?) throws -> Data
+    func read(expectedFileSize: UInt64?) throws -> Data
+    func read(_ streamID: Int32, expectedFileSize: UInt64?) throws -> Data
     func readError() throws -> Data
-    func write(_ data: Data, progress: WriteProgressCallback?) -> (error: Error?, bytesSent: Int)
+    func write(_ data: Data, progress: TransferProgressCallback?) -> (error: Error?, bytesSent: Int)
     func exitStatus() -> Int?
     func sendEOF() throws
     

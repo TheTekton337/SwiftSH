@@ -29,11 +29,16 @@ internal extension CFSocket {
 
     func setSocketOption<T: BinaryInteger>(_ value: T, level: Int32, name: Int32) -> Bool {
         var value = value
-        if setsockopt(CFSocketGetNative(self), level, name, &value, socklen_t(MemoryLayout.size(ofValue: value))) == -1 {
-            return false
+        let valueSize = MemoryLayout.size(ofValue: value)
+        return withUnsafeBytes(of: &value) { valuePtr in
+            guard let ptr = valuePtr.baseAddress else {
+                return false
+            }
+            if setsockopt(CFSocketGetNative(self), level, name, ptr, socklen_t(valueSize)) == -1 {
+                return false
+            }
+            return true
         }
-
-        return true
     }
 
 }

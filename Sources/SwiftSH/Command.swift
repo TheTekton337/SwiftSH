@@ -141,7 +141,7 @@ public class SSHCommand: SSHChannel {
         session.generalQueue.async {
             do {
                 self.session.session.blocking = false
-                let data = try self.channel.read(expectedFileSize: nil, progress: nil)
+                let data = try self.channel.read(expectedFileSize: nil)
                 if self.response == nil {
                     self.response = Data()
                 }
