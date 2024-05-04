@@ -24,10 +24,9 @@
 import Foundation
 
 public typealias SSHCompletionBlock = (Error?) -> Void
-public typealias ReadProgressCallback = (_ bytesTransferred: UInt64) -> Void
-public typealias WriteProgressCallback = (_ bytesTransferred: UInt64, _ totalBytes: UInt64) -> Void
-public typealias SCPReadCompletionBlock = (FileInfo?, Data?, Error?) -> Void
-public typealias SCPWriteCompletionBlock = (Int?, Error?) -> Void
+public typealias TransferStartBlock = (FileInfo) -> Void
+public typealias TransferProgressCallback = (_ bytesTransferred: Double, _ transferRate: Double) -> Void
+public typealias TransferEndBlock = (Error?) -> Void
 
 public enum QueueType {
     case general

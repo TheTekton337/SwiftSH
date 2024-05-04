@@ -728,15 +728,15 @@ extension Libssh2 {
             }
         }
 
-        func read(expectedFileSize: UInt64? = nil, progress: ReadProgressCallback?) throws -> Data {
-            return try self.read(0, expectedFileSize: expectedFileSize, progress: progress)
+        func read(expectedFileSize: UInt64? = nil) throws -> Data {
+            return try self.read(0, expectedFileSize: expectedFileSize)
         }
 
         func readError() throws -> Data {
             return try self.read(SSH_EXTENDED_DATA_STDERR)
         }
 
-        func read(_ streamID: Int32, expectedFileSize: UInt64? = nil, progress: ReadProgressCallback? = nil) throws -> Data {
+        func read(_ streamID: Int32, expectedFileSize: UInt64? = nil) throws -> Data {
             guard let channel = self.channel else {
                 throw SSHError.Channel.invalid
             }
@@ -770,7 +770,6 @@ extension Libssh2 {
                         data.append(UnsafePointer($0), count: Int(bytesToAppend))
                     }
                     totalBytesRead += bytesToAppend
-                    progress?(totalBytesRead)
 
                     if let fileSize = expectedFileSize, totalBytesRead >= fileSize {
                         break
@@ -781,7 +780,7 @@ extension Libssh2 {
             return data
         }
 
-        func write(_ data: Data, progress: WriteProgressCallback? = nil) -> (error: Error?, bytesSent: Int) {
+        func write(_ data: Data, progress: TransferProgressCallback? = nil) -> (error: Error?, bytesSent: Int) {
             guard let channel = self.channel else {
                 return (error: SSHError.Channel.invalid, bytesSent: 0)
             }
@@ -789,6 +788,8 @@ extension Libssh2 {
             guard !data.isEmpty else {
                 return (error: nil, bytesSent: 0)
             }
+            
+            let startTime = Date()
             
             return data.withUnsafeBytes{
                 let buffer = $0.bindMemory(to: Int8.self)
@@ -808,7 +809,12 @@ extension Libssh2 {
                         bytesSent += returnCode
                     }
                     
-                    progress?(UInt64(bytesSent), UInt64(totalBytes))
+                    if (progress != nil) {
+                        let elapsedTime = Date().timeIntervalSince(startTime)
+                        let transferRate = elapsedTime > 0 ? Double(bytesSent) / elapsedTime : 0
+                        
+                        progress?(Double(bytesSent), transferRate)
+                    }
                 } while bytesSent < data.count
                 
                 return (error: nil, bytesSent: bytesSent)

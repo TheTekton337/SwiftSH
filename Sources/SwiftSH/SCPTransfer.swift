@@ -16,12 +16,18 @@ public class SCPTransfer: NSObject {
     ///   - remotePath: The remote path where the file should be uploaded.
     ///   - completion: A completion handler called when the upload completes.
     ///   - progress: A progress callback called with upload progress updates.
-    public func upload(localPath: String, remotePath: String, completion: @escaping SCPWriteCompletionBlock, progress: WriteProgressCallback? = nil) {
+    public func upload(localPath: String, remotePath: String, start: @escaping TransferStartBlock, completion: @escaping TransferEndBlock, progress: TransferProgressCallback? = nil) {
         let resolvedPath = self.resolvePath(localPath)
-        scpSession.upload(resolvedPath, remotePath: remotePath, completion: { bytesSent, error in
-            completion(bytesSent, error)
-        }, progress: { bytesWritten, totalBytes in
-            progress?(bytesWritten, totalBytes)
+        var lastBytesTransferred: Double = 0
+        scpSession.upload(resolvedPath, remotePath: remotePath, start: { fileInfo in
+            start(fileInfo)
+        }, completion: { error in
+            completion(error)
+        }, progress: { bytesTransferred, transferRate in
+            if bytesTransferred != lastBytesTransferred {
+                lastBytesTransferred = bytesTransferred
+                progress?(bytesTransferred, transferRate)
+            }
         })
     }
     
@@ -31,12 +37,18 @@ public class SCPTransfer: NSObject {
     ///   - localPath: The local path where the file should be saved, can be relative to the app's documents directory or absolute.
     ///   - completion: A completion handler called when the download completes.
     ///   - progress: A progress callback called with download progress updates.
-    public func download(remotePath: String, localPath: String, completion: @escaping SCPReadCompletionBlock, progress: ReadProgressCallback? = nil) {
+    public func download(remotePath: String, localPath: String, start: @escaping TransferStartBlock, completion: @escaping TransferEndBlock, progress: TransferProgressCallback? = nil) {
         let resolvedPath = self.resolvePath(localPath)
-        scpSession.download(remotePath, to: resolvedPath, completion: { fileInfo, data, error in
-            completion(fileInfo, data, error)
-        }, progress: { bytesRead in
-            progress?(bytesRead)
+        var lastBytesTransferred: Double = 0
+        scpSession.download(remotePath, to: resolvedPath, start: { fileInfo in
+            start(fileInfo)
+        }, completion: { error in
+            completion(error)
+        }, progress: { bytesTransferred, transferRate in
+            if bytesTransferred != lastBytesTransferred {
+                lastBytesTransferred = bytesTransferred
+                progress?(bytesTransferred, transferRate)
+            }
         })
     }
     

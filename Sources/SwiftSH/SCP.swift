@@ -35,10 +35,11 @@ public class SCPSession: SSHChannel {
     private var isDownloading: Bool = false
     
     private var readStream: OutputStream?
-    private var totalBytesRead = 0
+    private var totalBytesRead: Double = 0
     private var readFileInfo: FileInfo?
-    private var readCompletionCallback: SCPReadCompletionBlock?
-    private var readProgressCallback: ReadProgressCallback?
+    private var readCompletionCallback: TransferEndBlock?
+    private var readProgressCallback: TransferProgressCallback?
+    private var startTime: Date?
     
     public override init(sshLibrary: SSHLibrary.Type = Libssh2.self, session: SSHSession, environment: [Environment] = [], terminal: Terminal? = nil, queueType: QueueType = .general) throws {
         self.sshSession = session
@@ -88,36 +89,36 @@ public class SCPSession: SSHChannel {
             
             guard let fileInfo = self.readFileInfo, let scpChannel = self.scpChannel, let stream = self.readStream else {
                 self.finishDownload()
-                completion?(nil, nil, SSHError.SCP.fileRead(detail: "SCP socket read event unable to initialize"))
+                completion?(SSHError.SCP.fileRead(detail: "SCP socket read event unable to initialize"))
                 return
             }
             
             do {
-                let data = try scpChannel.read(expectedFileSize: UInt64(fileInfo.fileSize), progress: progress)
+                let data = try scpChannel.read(expectedFileSize: UInt64(fileInfo.fileSize))
                 if (data.count == 0) {
 //                    No payload this read
                     return
                 }
                 
-                // TODO: find out where the final packet's null byte comes from.
-                let expectedFileSize = Int(fileInfo.fileSize)
-                let packetSize = data.count
+                // TODO: review types below and find out where the final packet's null byte comes from.
+                let expectedFileSize = Double(fileInfo.fileSize)
+                let packetSize = Double(data.count)
                 let nextTotalBytesRead = self.totalBytesRead + packetSize
                 
                 let writeLength: Int
                 if (nextTotalBytesRead > expectedFileSize) {
                     let diff = nextTotalBytesRead - expectedFileSize
                     let fixedPacketSized = packetSize - diff
-                    writeLength = fixedPacketSized
+                    writeLength = Int(fixedPacketSized)
                 } else {
-                    writeLength = packetSize
+                    writeLength = Int(packetSize)
                 }
                 
                 let writeResult = data.withUnsafeBytes {
                     let result = stream.write($0.bindMemory(to: UInt8.self).baseAddress!, maxLength: writeLength)
                     if (result < 0) {
                         self.finishDownload()
-                        completion?(nil, nil, SSHError.SCP.unknown(detail: "Stream error: \(self.readStream?.streamError?.localizedDescription ?? "unknown")"))
+                        completion?(SSHError.SCP.unknown(detail: "Stream error: \(self.readStream?.streamError?.localizedDescription ?? "unknown")"))
                     }
                     return result
                 }
@@ -125,24 +126,30 @@ public class SCPSession: SSHChannel {
                 if (writeResult < 0) {
                     return
                 }
-                self.totalBytesRead += writeResult
+                self.totalBytesRead += Double(writeResult)
                 
                 if (self.totalBytesRead == expectedFileSize) {
-                    completion?(fileInfo, data, nil)
+                    completion?(nil)
                 } else if (self.totalBytesRead > expectedFileSize) {
-                    completion?(nil, nil, SSHError.SCP.fileRead(detail: "Received too much data"))
+                    completion?(SSHError.SCP.fileRead(detail: "Received too much data"))
                 } else if (!stream.hasSpaceAvailable) {
-                    completion?(nil, nil, SSHError.SCP.fileRead(detail: "No space available"))
+                    completion?(SSHError.SCP.fileRead(detail: "No space available"))
+                } else {
+                    let elapsedTime = self.startTime.map { Date().timeIntervalSince($0) } ?? 0
+                    let transferRate = elapsedTime > 0 ? Double(self.totalBytesRead) / elapsedTime : 0
+                    
+                    progress?(self.totalBytesRead, transferRate)
                 }
             } catch {
                 self.finishDownload()
-                completion?(fileInfo, nil, error)
+                completion?(error)
             }
         }
     }
     
     func finishDownload() {
         self.isDownloading = false
+        self.startTime = nil
         
         if (readStream != nil) {
             readStream?.close()
@@ -158,7 +165,7 @@ public class SCPSession: SSHChannel {
     /// - Returns: Self, to allow for method chaining.
     @discardableResult
     public func download(_ from: String, to path: String) -> Self {
-        self.download(from, to: path, completion: nil, progress: nil)
+        self.download(from, to: path, start: nil, completion: nil, progress: nil)
         return self
     }
 
@@ -171,21 +178,21 @@ public class SCPSession: SSHChannel {
     ///                 The callback provides fileInfo, file data (if any), and an error (if any).
     ///   - progress: An optional ReadProgressCallback that is called on progress updates.
     ///                 The callback provides bytesTransferred
-    public func download(_ from: String, to path: String, completion: SCPReadCompletionBlock?, progress: ReadProgressCallback?) {
+    public func download(_ from: String, to path: String, start: TransferStartBlock?, completion: TransferEndBlock?, progress: TransferProgressCallback?) {
         let fileManager = FileManager.default
         if fileManager.fileExists(atPath: path) {
             do {
                 try fileManager.removeItem(atPath: path)
             } catch {
-                completion?(nil, nil, SSHError.SCP.unknown(detail: "Failed to truncate file to download"))
+                completion?(SSHError.SCP.unknown(detail: "Failed to truncate file to download"))
                 return
             }
         }
         if let stream = OutputStream(toFileAtPath: path, append: true) {
             stream.open()
-            self.download(from, to: stream, completion: completion, progress: progress)
+            self.download(from, to: stream, start: start, completion: completion, progress: progress)
         } else {
-            completion?(nil, nil, SSHError.SCP.unknown(detail: "Unable to open file stream for download path \(path)"))
+            completion?(SSHError.SCP.unknown(detail: "Unable to open file stream for download path \(path)"))
         }
     }
 
@@ -196,7 +203,7 @@ public class SCPSession: SSHChannel {
     /// - Returns: Self, to allow for method chaining.
     @discardableResult
     public func download(_ from: String, to stream: OutputStream) -> Self {
-        self.download(from, to: stream, completion: nil, progress: nil)
+        self.download(from, to: stream, start: nil, completion: nil, progress: nil)
         return self
     }
     
@@ -205,17 +212,19 @@ public class SCPSession: SSHChannel {
     /// - Parameters:
     ///   - from: The remote path of the file to download.
     ///   - completion: A completion block that provides the downloaded data (if any) and an error (if any).
-    public func download(_ from: String, completion: @escaping SCPReadCompletionBlock, progress: @escaping ReadProgressCallback) {
+    public func download(_ from: String, start: TransferStartBlock?, completion: @escaping TransferEndBlock, progress: @escaping TransferProgressCallback) {
         let stream = OutputStream.toMemory()
         stream.open()
-        self.download(from, to: stream) { fileInfo, data, error in
-            if let data = stream.property(forKey: Stream.PropertyKey.dataWrittenToMemoryStreamKey) as? Data {
-                completion(fileInfo, data, error)
+        self.download(from, to: stream) { fileInfo in
+            start?(fileInfo)
+        } completion: { error in
+            if stream.property(forKey: Stream.PropertyKey.dataWrittenToMemoryStreamKey) is Data {
+                completion(error)
             } else {
-                completion(nil, nil, error ?? SSHError.SCP.unknown (detail: "Download lacks the data"))
+                completion(error ?? SSHError.SCP.unknown (detail: "Unable to read download stream"))
             }
-        } progress: { bytesRead in
-            progress(bytesRead)
+        } progress: { fileInfo, bytesRead in
+            progress(fileInfo, bytesRead)
         }
     }
 
@@ -229,23 +238,27 @@ public class SCPSession: SSHChannel {
     ///                 The callback provides fileInfo, file data (if any), and an error (if any).
     ///   - progress: An optional ReadProgressCallback that is called on progress updates.
     ///                 The callback provides bytesTransferred
-    public func download(_ from: String, to stream: OutputStream, completion: SCPReadCompletionBlock?, progress: ReadProgressCallback?) {
-        let completionWrapper: SCPReadCompletionBlock = { fileInfo, dat, error in
-            completion?(fileInfo, dat, error)
+    public func download(_ from: String, to stream: OutputStream, start: TransferStartBlock?, completion: TransferEndBlock?, progress: TransferProgressCallback?) {
+        let completionWrapper: TransferEndBlock = { error in
+            completion?(error)
             self.finishDownload()
         }
         self.readCompletionCallback = completionWrapper
         self.readProgressCallback = progress
         self.readStream = stream
         
-        self.openSCPChannelForDownload(remotePath: from, completion: { [weak self] fileInfo, error in
+        self.startTime = Date()
+
+        self.openSCPChannelForDownload(remotePath: from, start: { fileInfo in
+            start?(fileInfo)
+        }, completion: { [weak self] fileInfo, error in
             guard let self = self else {
-                completion?(nil, nil, SSHError.SCP.unknown(detail: "SCP is not initialized"))
+                completion?(SSHError.SCP.unknown(detail: "SCP is not initialized"))
                 return
             }
             
             guard let fileInfo = fileInfo, error == nil else {
-                completion?(fileInfo, nil, error)
+                completion?(error)
                 self.finishDownload()
                 return
             }
@@ -261,7 +274,7 @@ public class SCPSession: SSHChannel {
     /// - Returns: Self, to allow for method chaining.
     @discardableResult
     public func upload(_ localPath: String, remotePath: String) -> Self {
-        self.upload(localPath, remotePath: remotePath, completion: nil, progress: nil)
+        self.upload(localPath, remotePath: remotePath, start: nil, completion: nil, progress: nil)
         return self
     }
 
@@ -269,22 +282,38 @@ public class SCPSession: SSHChannel {
     /// - Parameters:
     ///   - localPath: The path to the local file to be uploaded.
     ///   - completion: An optional SCPWriteCompletionBlock to handle the upload result.
-    public func upload(_ localPath: String, remotePath: String, completion: SCPWriteCompletionBlock?, progress: WriteProgressCallback?) {
+    public func upload(_ localPath: String, remotePath: String, start: TransferStartBlock?, completion: TransferEndBlock?, progress: TransferProgressCallback?) {
         do {
             let fileURL = URL(fileURLWithPath: localPath)
+            
             let fileData = try Data(contentsOf: fileURL)
             let fileSize = UInt64(fileData.count)
+
+            let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
+            if let posixPermissions = attributes[.posixPermissions] as? NSNumber {
+                let permissionsString = String(format:"%o", posixPermissions.uintValue)
+                print("File permissions: \(permissionsString)")
+                
+                let modificationDate = attributes[.modificationDate] as? Date ?? Date()
+                let modificationTimeInterval = modificationDate.timeIntervalSince1970
+                let fileInfo = FileInfo(fileSize: Int64(fileSize), modificationTime: modificationTimeInterval, accessTime: nil, permissions: UInt16(truncating: posixPermissions))
+                
+                start?(fileInfo)
+            } else {
+                completion?(SSHError.SCP.fileRead(detail: "Permissions not found for file to upload."))
+                return
+            }
             
             self.openSCPChannelForUpload(localPath: localPath, remotePath: remotePath, completion: { error in
                 guard error == nil else {
-                    completion?(nil, error)
+                    completion?(error)
                     return
                 }
                 
                 self.session.generalQueue.async {
                     guard let scpChannel = self.scpChannel else {
                         self.finishDownload()
-                        completion?(nil, SSHError.SCP.fileRead(detail: "SCP upload channel unavailable"))
+                        completion?(SSHError.SCP.fileRead(detail: "SCP upload channel unavailable"))
                         return
                     }
                     
@@ -293,27 +322,27 @@ public class SCPSession: SSHChannel {
                         
                         let isUploadSuccessful = result.bytesSent == fileSize
                         if !isUploadSuccessful {
-                            completion?(nil, SSHError.SCP.uploadVerification(detail: "Upload verification failed file size."))
+                            completion?(SSHError.SCP.uploadVerification(detail: "Upload verification failed file size."))
                             return
                         }
                         
                         try scpChannel.closeChannel()
                         
-                        completion?(result.bytesSent, result.error)
+                        completion?(result.error)
                     } catch {
                         self.finishDownload()
-                        completion?(nil, error)
+                        completion?(error)
                     }
                 }
             })
         } catch {
-            completion?(nil, error)
+            completion?(error)
         }
     }
 }
 
 extension SCPSession {
-    public func openSCPChannelForDownload(remotePath: String, completion: @escaping (FileInfo?, Error?) -> Void) {
+    public func openSCPChannelForDownload(remotePath: String, start: @escaping (FileInfo) -> Void, completion: @escaping (FileInfo?, Error?) -> Void) {
         session.generalQueue.async(completion: { (error: Error?) in
             if let error = error {
                 self.close()
@@ -331,6 +360,8 @@ extension SCPSession {
                     completion(nil, SSHError.SCP.fileInfoUnavailable)
                     return
                 }
+                
+                start(fileInfo)
                 
                 self.isDownloading = true
                 

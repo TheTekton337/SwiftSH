@@ -9,12 +9,12 @@
 import Foundation
 
 @objcMembers public class FileInfo: NSObject {
-    public let fileSize: Int32
+    public let fileSize: Int64
     public let modificationTime: TimeInterval
-    public let accessTime: TimeInterval
+    public let accessTime: TimeInterval?
     public let permissions: UInt16
     
-    init(fileSize: Int32, modificationTime: TimeInterval, accessTime: TimeInterval, permissions: UInt16) {
+    init(fileSize: Int64, modificationTime: TimeInterval, accessTime: TimeInterval?, permissions: UInt16) {
         self.fileSize = fileSize
         self.modificationTime = modificationTime
         self.accessTime = accessTime
@@ -23,7 +23,7 @@ import Foundation
     
     convenience init(fromStat statInfo: stat) {
         self.init(
-            fileSize: Int32(statInfo.st_size),
+            fileSize: statInfo.st_size,
             modificationTime: TimeInterval(statInfo.st_mtimespec.tv_sec),
             accessTime: TimeInterval(statInfo.st_atimespec.tv_sec),
             permissions: UInt16(statInfo.st_mode)
@@ -34,7 +34,7 @@ import Foundation
         let fileManager = FileManager.default
         
         let attributes = try fileManager.attributesOfItem(atPath: localPath)
-        let fileSize = attributes[.size] as? Int32 ?? 0
+        let fileSize = attributes[.size] as? Int64 ?? 0
         let modificationDate = attributes[.modificationDate] as? Date ?? Date.init()
         let accessDate = attributes[.creationDate] as? Date ?? Date.init()
         let permissions = attributes[.posixPermissions] as? UInt16 ?? 0
@@ -53,17 +53,19 @@ extension FileInfo {
     public func toData() -> Data {
         var data = Data()
         
-        // FileSize (Int32)
+        // FileSize (Int64)
         var fileSize = Int64(self.fileSize)
         data.append(Data(bytes: &fileSize, count: MemoryLayout.size(ofValue: fileSize)))
         
-        // ModificationTime (TimeInterval -> Double -> Int32 for simplicity)
+        // ModificationTime (TimeInterval -> Double -> Int64 for simplicity)
         var modTime = Double(self.modificationTime)
         data.append(Data(bytes: &modTime, count: MemoryLayout.size(ofValue: modTime)))
         
-        // AccessTime (TimeInterval -> Double -> Int32 for simplicity)
-        var accTime = Double(self.accessTime)
-        data.append(Data(bytes: &accTime, count: MemoryLayout.size(ofValue: accTime)))
+        if (self.accessTime != nil) {
+            // AccessTime (TimeInterval -> Double -> Int64 for simplicity)
+            var accTime = Double(self.accessTime!)
+            data.append(Data(bytes: &accTime, count: MemoryLayout.size(ofValue: accTime)))
+        }
         
         // Permissions (Int16)
         var perms = Int16(self.permissions)
@@ -77,7 +79,7 @@ extension FileInfo {
             return [
                 "fileSize": fileSize,
                 "modificationTime": modificationTime,
-                "accessTime": accessTime,
+                "accessTime": accessTime ?? "",
                 "permissions": permissions
             ]
         }
