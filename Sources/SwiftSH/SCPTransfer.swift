@@ -16,10 +16,10 @@ public class SCPTransfer: NSObject {
     ///   - remotePath: The remote path where the file should be uploaded.
     ///   - completion: A completion handler called when the upload completes.
     ///   - progress: A progress callback called with upload progress updates.
-    public func upload(localPath: String, remotePath: String, start: @escaping TransferStartBlock, completion: @escaping TransferEndBlock, progress: TransferProgressCallback? = nil) {
+    public func upload(callbackId: String, localPath: String, remotePath: String, start: @escaping TransferStartBlock, completion: @escaping TransferEndBlock, progress: TransferProgressCallback? = nil) {
         let resolvedPath = self.resolvePath(localPath)
         var lastBytesTransferred: Double = 0
-        scpSession.upload(resolvedPath, remotePath: remotePath, start: { fileInfo in
+        scpSession.upload(callbackId, from: resolvedPath, to: remotePath, start: { fileInfo in
             start(fileInfo)
         }, completion: { error in
             completion(error)
@@ -37,10 +37,10 @@ public class SCPTransfer: NSObject {
     ///   - localPath: The local path where the file should be saved, can be relative to the app's documents directory or absolute.
     ///   - completion: A completion handler called when the download completes.
     ///   - progress: A progress callback called with download progress updates.
-    public func download(remotePath: String, localPath: String, start: @escaping TransferStartBlock, completion: @escaping TransferEndBlock, progress: TransferProgressCallback? = nil) {
+    public func download(callbackId: String, remotePath: String, localPath: String, start: @escaping TransferStartBlock, completion: @escaping TransferEndBlock, progress: TransferProgressCallback? = nil) {
         let resolvedPath = self.resolvePath(localPath)
         var lastBytesTransferred: Double = 0
-        scpSession.download(remotePath, to: resolvedPath, start: { fileInfo in
+        scpSession.download(callbackId, from: remotePath, to: resolvedPath, start: { fileInfo in
             start(fileInfo)
         }, completion: { error in
             completion(error)
