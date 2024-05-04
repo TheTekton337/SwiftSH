@@ -29,17 +29,25 @@ import CSwiftSH
 
 public class SCPSession: SSHChannel {
     private let sshSession: SSHSession
+    private var transferSessions: [String: TransferSession] = [:]
+
+    private struct TransferSession {
+//        TODO: Test multiple concurrent ssh sessions, channels etc.
+        var scpChannel: SSHLibraryChannel?
+        var transferId: String
+        var isTransferring: Bool = true
+        var fileInfo: FileInfo? = nil
+        var startTime: Date? = Date()
+        var endTime: Date?
+        var downloadSession: DownloadSession? = nil
+    }
     
-    private var scpChannel: SSHLibraryChannel?
-    
-    private var isDownloading: Bool = false
-    
-    private var readStream: OutputStream?
-    private var totalBytesRead: Double = 0
-    private var readFileInfo: FileInfo?
-    private var readCompletionCallback: TransferEndBlock?
-    private var readProgressCallback: TransferProgressCallback?
-    private var startTime: Date?
+    private struct DownloadSession {
+        var stream: OutputStream?
+        var totalBytesRead: Double = 0
+        var completionCallback: TransferEndBlock? = nil
+        var progressCallback: TransferProgressCallback? = nil
+    }
     
     public override init(sshLibrary: SSHLibrary.Type = Libssh2.self, session: SSHSession, environment: [Environment] = [], terminal: Terminal? = nil, queueType: QueueType = .general) throws {
         self.sshSession = session
@@ -53,13 +61,14 @@ public class SCPSession: SSHChannel {
     
     deinit {
         session.generalQueue.async {
-            self.finishDownload()
-            
-            do {
-                if (self.channel != nil) {
-                    try self.channel.closeChannel()
-                }
-            } catch {}
+            self.transferSessions.forEach { (_, session) in
+                self.finishDownload(transferId: session.transferId)
+                do {
+                    if let channel = session.scpChannel {
+                        try channel.closeChannel()
+                    }
+                } catch {}
+            }
         }
     }
     
@@ -67,7 +76,9 @@ public class SCPSession: SSHChannel {
 
     public override func close() {
         session.generalQueue.async {
-            self.finishDownload()
+            self.transferSessions.forEach { (_, session) in
+                self.finishDownload(transferId: session.transferId)
+            }
             let prevBlockingMode = super.session.session.blocking
             super.close()
             super.session.session.blocking = prevBlockingMode
@@ -77,18 +88,24 @@ public class SCPSession: SSHChannel {
     // MARK: Channel Data Available
     
     public override func notifyDataAvailable() {
-        if (self.isDownloading) {
-            self.readDownload()
+        self.transferSessions.forEach { (_, session) in
+            if session.isTransferring {
+                self.readDownload(transferId: session.transferId)
+            }
         }
     }
     
-    private func readDownload() {
+    private func readDownload(transferId: String) {
         session.generalQueue.async {
-            let completion = self.readCompletionCallback
-            let progress = self.readProgressCallback
+//            TODO: Fix guard statements to throw an exception or send an error to RTN
+            guard var session = self.transferSessions[transferId] else { return }
+            guard var downloadSession = session.downloadSession else { return }
             
-            guard let fileInfo = self.readFileInfo, let scpChannel = self.scpChannel, let stream = self.readStream else {
-                self.finishDownload()
+            let completion = downloadSession.completionCallback
+            let progress = downloadSession.progressCallback
+            
+            guard let fileInfo = session.fileInfo, let scpChannel = session.scpChannel, let stream = downloadSession.stream else {
+                self.finishDownload(transferId: transferId)
                 completion?(SSHError.SCP.fileRead(detail: "SCP socket read event unable to initialize"))
                 return
             }
@@ -103,7 +120,7 @@ public class SCPSession: SSHChannel {
                 // TODO: review types below and find out where the final packet's null byte comes from.
                 let expectedFileSize = Double(fileInfo.fileSize)
                 let packetSize = Double(data.count)
-                let nextTotalBytesRead = self.totalBytesRead + packetSize
+                let nextTotalBytesRead = downloadSession.totalBytesRead + packetSize
                 
                 let writeLength: Int
                 if (nextTotalBytesRead > expectedFileSize) {
@@ -117,8 +134,9 @@ public class SCPSession: SSHChannel {
                 let writeResult = data.withUnsafeBytes {
                     let result = stream.write($0.bindMemory(to: UInt8.self).baseAddress!, maxLength: writeLength)
                     if (result < 0) {
-                        self.finishDownload()
-                        completion?(SSHError.SCP.unknown(detail: "Stream error: \(self.readStream?.streamError?.localizedDescription ?? "unknown")"))
+                        self.finishDownload(transferId: transferId)
+//                        TODO: Does this complete w/error correctly?
+                        completion?(SSHError.SCP.unknown(detail: "Stream error: \(downloadSession.stream?.streamError?.localizedDescription ?? "unknown")"))
                     }
                     return result
                 }
@@ -126,33 +144,29 @@ public class SCPSession: SSHChannel {
                 if (writeResult < 0) {
                     return
                 }
-                self.totalBytesRead += Double(writeResult)
+//                TODO: There's a race condition or something... we're in the queue block, strange.
+//                      This issue didn't occur before refactoring, so should be able to ID root cause based on changes.
+                downloadSession.totalBytesRead += Double(writeResult)
                 
-                if (self.totalBytesRead == expectedFileSize) {
+                session.downloadSession = downloadSession
+                self.transferSessions[transferId] = session
+                
+                if (downloadSession.totalBytesRead == expectedFileSize) {
                     completion?(nil)
-                } else if (self.totalBytesRead > expectedFileSize) {
+                } else if (downloadSession.totalBytesRead > expectedFileSize) {
                     completion?(SSHError.SCP.fileRead(detail: "Received too much data"))
                 } else if (!stream.hasSpaceAvailable) {
                     completion?(SSHError.SCP.fileRead(detail: "No space available"))
                 } else {
-                    let elapsedTime = self.startTime.map { Date().timeIntervalSince($0) } ?? 0
-                    let transferRate = elapsedTime > 0 ? Double(self.totalBytesRead) / elapsedTime : 0
+                    let elapsedTime = session.startTime.map { Date().timeIntervalSince($0) } ?? 0
+                    let transferRate = elapsedTime > 0 ? Double(downloadSession.totalBytesRead) / elapsedTime : 0
                     
-                    progress?(self.totalBytesRead, transferRate)
+                    progress?(downloadSession.totalBytesRead, transferRate)
                 }
             } catch {
-                self.finishDownload()
+                self.finishDownload(transferId: transferId)
                 completion?(error)
             }
-        }
-    }
-    
-    func finishDownload() {
-        self.isDownloading = false
-        self.startTime = nil
-        
-        if (readStream != nil) {
-            readStream?.close()
         }
     }
 
@@ -160,25 +174,28 @@ public class SCPSession: SSHChannel {
 
     /// Initiates a download from a specified remote path to a local file path without a completion callback.
     /// - Parameters:
+    ///   - transferId: The transfer identifer.
     ///   - from: The remote path of the file to download.
     ///   - to: The local file path where the downloaded file will be saved.
     /// - Returns: Self, to allow for method chaining.
     @discardableResult
-    public func download(_ from: String, to path: String) -> Self {
-        self.download(from, to: path, start: nil, completion: nil, progress: nil)
+    public func download(_ transferId: String, from: String, to path: String) -> Self {
+        self.download(transferId, from: from, to: path, start: nil, completion: nil, progress: nil)
         return self
     }
 
     /// Initiates a download from a specified remote path to a local file path with an optional completion callback.
     /// The completion callback provides details about the file and any error that occurred.
     /// - Parameters:
+    ///   - transferId: The transfer identifer.
     ///   - from: The remote path of the file to download.
     ///   - to: The local file path where the downloaded file will be saved.
+    ///   - start: A start block that provides the download FileInfo.
     ///   - completion: An optional SCPReadCompletionBlock that is called upon completion of the download operation.
     ///                 The callback provides fileInfo, file data (if any), and an error (if any).
     ///   - progress: An optional ReadProgressCallback that is called on progress updates.
-    ///                 The callback provides bytesTransferred
-    public func download(_ from: String, to path: String, start: TransferStartBlock?, completion: TransferEndBlock?, progress: TransferProgressCallback?) {
+    ///                 The callback provides bytesTransferred.
+    public func download(_ transferId: String, from: String, to path: String, start: TransferStartBlock?, completion: TransferEndBlock?, progress: TransferProgressCallback?) {
         let fileManager = FileManager.default
         if fileManager.fileExists(atPath: path) {
             do {
@@ -190,7 +207,7 @@ public class SCPSession: SSHChannel {
         }
         if let stream = OutputStream(toFileAtPath: path, append: true) {
             stream.open()
-            self.download(from, to: stream, start: start, completion: completion, progress: progress)
+            self.download(transferId, from: from, to: stream, start: start, completion: completion, progress: progress)
         } else {
             completion?(SSHError.SCP.unknown(detail: "Unable to open file stream for download path \(path)"))
         }
@@ -198,25 +215,31 @@ public class SCPSession: SSHChannel {
 
     /// Initiates a download from a specified remote path to an OutputStream without a completion callback.
     /// - Parameters:
+    ///   - transferId: The transfer identifer.
     ///   - from: The remote path of the file to download.
     ///   - to: The OutputStream to which the downloaded file will be written.
     /// - Returns: Self, to allow for method chaining.
     @discardableResult
-    public func download(_ from: String, to stream: OutputStream) -> Self {
-        self.download(from, to: stream, start: nil, completion: nil, progress: nil)
+    public func download(_ transferId: String, from: String, to stream: OutputStream) -> Self {
+        self.download(transferId, from: from, to: stream, start: nil, completion: nil, progress: nil)
         return self
     }
     
     /// Initiates a download from a specified remote path and provides the downloaded data via a completion callback.
     /// This method uses an in-memory OutputStream to hold the downloaded data.
     /// - Parameters:
+    ///   - transferId: The transfer identifer.
     ///   - from: The remote path of the file to download.
-    ///   - completion: A completion block that provides the downloaded data (if any) and an error (if any).
-    public func download(_ from: String, start: TransferStartBlock?, completion: @escaping TransferEndBlock, progress: @escaping TransferProgressCallback) {
+    ///   - start: A TransferStartBlock that provides the upload FileInfo.
+    ///   - completion: A TransferEndBlock that is called upon completion of the upload operation.
+    ///                 The callback provides an error (if any).
+    ///   - progress: A TransferProgressCallback that is called on progress updates.
+    ///                 The callback provides bytesTransferred and transferRate.
+    public func download(_ transferId: String, from: String, start: @escaping TransferStartBlock, completion: @escaping TransferEndBlock, progress: @escaping TransferProgressCallback) {
         let stream = OutputStream.toMemory()
         stream.open()
-        self.download(from, to: stream) { fileInfo in
-            start?(fileInfo)
+        self.download(transferId, from: from, to: stream) { fileInfo in
+            start(fileInfo)
         } completion: { error in
             if stream.property(forKey: Stream.PropertyKey.dataWrittenToMemoryStreamKey) is Data {
                 completion(error)
@@ -232,24 +255,28 @@ public class SCPSession: SSHChannel {
     /// The completion callback provides details about the file, and any error that occurred.
     /// This method asynchronously reads the data from the SCP channel and writes it to the provided OutputStream.
     /// - Parameters:
+    ///   - transferId: The transfer identifer.
     ///   - from: The remote path of the file to download.
     ///   - to: The OutputStream to which the downloaded file data will be written.
-    ///   - completion: An optional SCPReadCompletionBlock that is called upon completion of the download operation.
-    ///                 The callback provides fileInfo, file data (if any), and an error (if any).
-    ///   - progress: An optional ReadProgressCallback that is called on progress updates.
-    ///                 The callback provides bytesTransferred
-    public func download(_ from: String, to stream: OutputStream, start: TransferStartBlock?, completion: TransferEndBlock?, progress: TransferProgressCallback?) {
+    ///   - start: An optional TransferStartBlock that provides the upload FileInfo.
+    ///   - completion: An optional TransferEndBlock that is called upon completion of the upload operation.
+    ///                 The callback provides an error (if any).
+    ///   - progress: An optional TransferProgressCallback that is called on progress updates.
+    ///                 The callback provides bytesTransferred and transferRate.
+    public func download(_ transferId: String, from: String, to stream: OutputStream, start: TransferStartBlock?, completion: TransferEndBlock?, progress: TransferProgressCallback?) {
         let completionWrapper: TransferEndBlock = { error in
             completion?(error)
-            self.finishDownload()
+            self.finishDownload(transferId: transferId)
         }
-        self.readCompletionCallback = completionWrapper
-        self.readProgressCallback = progress
-        self.readStream = stream
         
-        self.startTime = Date()
+        let newDownloadSession = DownloadSession(stream: stream, completionCallback: completionWrapper, progressCallback: progress)
+        let newSession = TransferSession(scpChannel: self.channel, transferId: transferId, downloadSession: newDownloadSession)
+        
+        self.transferSessions[transferId] = newSession
 
-        self.openSCPChannelForDownload(remotePath: from, start: { fileInfo in
+        self.openSCPChannelForDownload(transferId: transferId, remotePath: from, start: { fileInfo in
+            var session = self.transferSessions[transferId]
+            session?.fileInfo = fileInfo
             start?(fileInfo)
         }, completion: { [weak self] fileInfo, error in
             guard let self = self else {
@@ -259,32 +286,64 @@ public class SCPSession: SSHChannel {
             
             guard let fileInfo = fileInfo, error == nil else {
                 completion?(error)
-                self.finishDownload()
+                self.finishDownload(transferId: transferId)
                 return
             }
             
-            self.readFileInfo = fileInfo
+            self.transferSessions[transferId]?.fileInfo = fileInfo
         })
+    }
+    
+    /// Finishes a download
+    /// - Parameters:
+    ///   - transferId: The transfer identifer.
+    func finishDownload(transferId: String) {
+        if let session = self.transferSessions[transferId] {
+//            TODO: Fix guard statements to throw an exception or send an error to RTN
+            guard let downloadSession = session.downloadSession else { return }
+            
+//            TODO: Do we only need isTransferring/endTime if we're tracking transfer history?
+//            session.isTransferring = false
+//            session.endTime = Date()
+            
+            if let stream = downloadSession.stream {
+                stream.close()
+            }
+            
+//            TODO: Do we need transfer history for any reason? If so, make removeValue optional.
+            self.transferSessions.removeValue(forKey: transferId)
+        }
     }
 
     // MARK: - Upload
-
+    
     /// Initiates an upload from a local file path without requiring a completion callback.
-    /// - Parameter localPath: The path to the local file to be uploaded.
+    /// - Parameters:
+    ///   - transferId: The transfer identifer.
+    ///   - from: The local path of the file to upload.
+    ///   - to: The remote path to which the uploaded file will be written.
     /// - Returns: Self, to allow for method chaining.
     @discardableResult
-    public func upload(_ localPath: String, remotePath: String) -> Self {
-        self.upload(localPath, remotePath: remotePath, start: nil, completion: nil, progress: nil)
+    public func upload(_ transferId: String, from: String, to: String) -> Self {
+        self.upload(transferId, from: from, to: to, start: nil, completion: nil, progress: nil)
         return self
     }
 
     /// Initiates an upload from a local file path with an optional completion callback.
     /// - Parameters:
-    ///   - localPath: The path to the local file to be uploaded.
-    ///   - completion: An optional SCPWriteCompletionBlock to handle the upload result.
-    public func upload(_ localPath: String, remotePath: String, start: TransferStartBlock?, completion: TransferEndBlock?, progress: TransferProgressCallback?) {
+    ///   - transferId: The transfer identifer.
+    ///   - from: The local path of the file to upload.
+    ///   - to: The remote path to which the uploaded file will be written.
+    ///   - start: An optional TransferStartBlock that provides the upload FileInfo.
+    ///   - completion: An optional TransferEndBlock that is called upon completion of the upload operation.
+    ///                 The callback provides an error (if any).
+    ///   - progress: An optional TransferProgressCallback that is called on progress updates.
+    ///                 The callback provides bytesTransferred and transferRate.
+    public func upload(_ transferId: String, from: String, to: String, start: TransferStartBlock?, completion: TransferEndBlock?, progress: TransferProgressCallback?) {
         do {
-            let fileURL = URL(fileURLWithPath: localPath)
+            var newSession = TransferSession(scpChannel: self.channel, transferId: transferId)
+            
+            let fileURL = URL(fileURLWithPath: from)
             
             let fileData = try Data(contentsOf: fileURL)
             let fileSize = UInt64(fileData.count)
@@ -298,21 +357,28 @@ public class SCPSession: SSHChannel {
                 let modificationTimeInterval = modificationDate.timeIntervalSince1970
                 let fileInfo = FileInfo(fileSize: Int64(fileSize), modificationTime: modificationTimeInterval, accessTime: nil, permissions: UInt16(truncating: posixPermissions))
                 
+                newSession.fileInfo = fileInfo
+                
                 start?(fileInfo)
             } else {
+//                TODO: If transfer history is supported, we will need to update transferSessions on all errors (use a helper func).
                 completion?(SSHError.SCP.fileRead(detail: "Permissions not found for file to upload."))
                 return
             }
             
-            self.openSCPChannelForUpload(localPath: localPath, remotePath: remotePath, completion: { error in
+            self.transferSessions[transferId] = newSession
+            
+            self.openSCPChannelForUpload(transferId: transferId, localPath: from, remotePath: to, completion: { error in
                 guard error == nil else {
                     completion?(error)
                     return
                 }
                 
                 self.session.generalQueue.async {
-                    guard let scpChannel = self.scpChannel else {
-                        self.finishDownload()
+                    let session = self.transferSessions[transferId]
+                    
+                    guard let scpChannel = session?.scpChannel else {
+                        self.finishDownload(transferId: transferId)
                         completion?(SSHError.SCP.fileRead(detail: "SCP upload channel unavailable"))
                         return
                     }
@@ -328,9 +394,11 @@ public class SCPSession: SSHChannel {
                         
                         try scpChannel.closeChannel()
                         
+                        self.transferSessions[transferId] = session
+                        
                         completion?(result.error)
                     } catch {
-                        self.finishDownload()
+                        self.finishDownload(transferId: transferId)
                         completion?(error)
                     }
                 }
@@ -339,31 +407,52 @@ public class SCPSession: SSHChannel {
             completion?(error)
         }
     }
+    
+    /// Finishes an upload
+    /// - Parameters:
+    ///   - transferId: The transfer identifer.
+    func finishUpload(transferId: String) {
+        if var session = self.transferSessions[transferId] {
+            session.isTransferring = false
+            session.endTime = Date()
+            
+//            TODO: Review close() behavior
+//            self.close()
+            
+            self.transferSessions.removeValue(forKey: transferId)
+        }
+    }
 }
 
 extension SCPSession {
-    public func openSCPChannelForDownload(remotePath: String, start: @escaping (FileInfo) -> Void, completion: @escaping (FileInfo?, Error?) -> Void) {
+    /// Opens an SCP channel for downloading
+    /// - Parameters:
+    ///   - transferId: The transfer identifer.
+    ///   - remotePath: The remote path to download.
+    ///   - start: A TransferStartBlock that provides the download FileInfo.
+    ///   - completion: A TransferEndBlock that is called upon completion of the download operation.
+    ///                 The callback provides the FileInfo (if any) and an error (if any).
+    public func openSCPChannelForDownload(transferId: String, remotePath: String, start: @escaping (FileInfo) -> Void, completion: @escaping (FileInfo?, Error?) -> Void) {
         session.generalQueue.async(completion: { (error: Error?) in
             if let error = error {
-                self.close()
-                self.isDownloading = false
+                self.finishDownload(transferId: transferId)
                 completion(nil, error)
             }
         }, block: {
             do {
-                self.scpChannel = self.sshSession.session.makeChannel()
+                var transferSession = self.transferSessions[transferId]
                 
-                let fileInfo = try self.scpChannel?.openSCPChannel(remotePath: remotePath)
+                let scpChannel = self.sshSession.session.makeChannel()
                 
-                guard let fileInfo = fileInfo else {
-                    self.isDownloading = false
-                    completion(nil, SSHError.SCP.fileInfoUnavailable)
-                    return
-                }
+                let fileInfo = try scpChannel.openSCPChannel(remotePath: remotePath)
+                
+                transferSession?.scpChannel = scpChannel
                 
                 start(fileInfo)
                 
-                self.isDownloading = true
+                transferSession?.isTransferring = true
+                
+                self.transferSessions[transferId] = transferSession
                 
 //            TODO: Add a prop for scp max file size
 //            if fileInfo.fileSize > MAX_FILE_SIZE {
@@ -372,31 +461,43 @@ extension SCPSession {
 //            }
                 
                 if (fileInfo.permissions & S_IRUSR) == 0 {
+                    self.finishDownload(transferId: transferId)
                     completion(nil, SSHError.SCP.fileRead(detail: "Permission denied: You do not have read access to the specified file on the remote host."))
                     return
                 }
                 
                 completion(fileInfo, nil)
             } catch {
-                self.isDownloading = false
+                self.finishDownload(transferId: transferId)
                 completion(nil, error)
             }
         })
     }
     
-    public func openSCPChannelForUpload(localPath: String, remotePath: String, completion: @escaping (Error?) -> Void) {
+    /// Opens an SCP channel for uploading
+    /// - Parameters:
+    ///   - transferId: The transfer identifer.
+    ///   - localPath: The local path to upload from.
+    ///   - remotePath: The remote path to upload to.
+    ///   - completion: A TransferEndBlock that is called upon completion of the upload operation.
+    ///                 The callback provides an error (if any).
+    public func openSCPChannelForUpload(transferId: String, localPath: String, remotePath: String, completion: @escaping (Error?) -> Void) {
         session.generalQueue.async(completion: { (error: Error?) in
             if let error = error {
-                self.close()
+                self.finishUpload(transferId: transferId)
                 completion(error)
             }
         }, block: {
             do {
+                var transferSession = self.transferSessions[transferId]
+                
                 let fileInfo = try FileInfo.init(fromLocalPath: localPath)
                 
-                self.scpChannel = self.sshSession.session.makeChannel()
+                transferSession?.scpChannel = self.sshSession.session.makeChannel()
                 
-                try self.scpChannel?.openSCPChannel(localPath: remotePath, mode: Int32(fileInfo.permissions), fileSize: UInt64(fileInfo.fileSize), mtime: fileInfo.modificationTime, atime: fileInfo.accessTime)
+                try transferSession?.scpChannel?.openSCPChannel(localPath: remotePath, mode: Int32(fileInfo.permissions), fileSize: UInt64(fileInfo.fileSize), mtime: fileInfo.modificationTime, atime: fileInfo.accessTime)
+                
+                self.transferSessions[transferId] = transferSession
                                 
                 completion(nil)
             } catch {
