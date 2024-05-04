@@ -137,7 +137,7 @@ class ShellViewController: UIViewController, SSHViewController {
                     self.textView.isEditable = true
                     cmd = try! SSHCommand(session: self.shell.session)
                     cmd.execute("echo hello > /tmp/i-was-here") { (str: String, dat:String?, err: Error?) in
-                            print ("Got \(str) \(dat) and \(err)")
+                        print ("Got \(str) \(String(describing: dat)) and \(String(describing: err))")
                     }
                 }                
             }
